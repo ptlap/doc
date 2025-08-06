@@ -1,0 +1,76 @@
+# Backend Dockerfile
+FROM node:18-alpine AS base
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Install system dependencies for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    musl-dev \
+    giflib-dev \
+    pixman-dev \
+    pangomm-dev \
+    libjpeg-turbo-dev \
+    freetype-dev
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/backend/package.json ./apps/backend/
+COPY packages/shared/package.json ./packages/shared/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY apps/backend ./apps/backend
+COPY packages/shared ./packages/shared
+
+# Generate Prisma client
+WORKDIR /app/apps/backend
+RUN npx prisma generate
+
+# Build application
+RUN pnpm build
+
+# Production stage
+FROM node:18-alpine AS production
+
+RUN npm install -g pnpm
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    cairo \
+    jpeg \
+    pango \
+    musl \
+    giflib \
+    pixman \
+    libjpeg-turbo \
+    freetype
+
+WORKDIR /app
+
+# Copy built application
+COPY --from=base /app/apps/backend/dist ./dist
+COPY --from=base /app/apps/backend/package.json ./
+COPY --from=base /app/apps/backend/prisma ./prisma
+COPY --from=base /app/apps/backend/node_modules/.prisma ./node_modules/.prisma
+
+# Install production dependencies only
+RUN pnpm install --prod --frozen-lockfile
+
+# Create directories for file storage
+RUN mkdir -p temp/uploads temp/pdf temp/images storage/documents storage/processed
+
+EXPOSE 3001
+
+CMD ["node", "dist/main.js"]
