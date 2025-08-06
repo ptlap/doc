@@ -2,6 +2,7 @@
   "name": "ai-document-assistant",
   "version": "1.0.0",
   "description": "AI Document Assistant - Intelligent document processing and Q&A system",
+  "type": "module",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -23,7 +24,15 @@
     "dev:backend": "turbo run dev --filter=@ai-doc-assistant/backend",
     "build:frontend": "turbo run build --filter=@ai-doc-assistant/frontend",
     "build:backend": "turbo run build --filter=@ai-doc-assistant/backend",
-    "prepare": "husky"
+    "prepare": "husky",
+    "setup": "./tools/scripts/dev-setup.sh",
+    "services:start": "./tools/scripts/start-services.sh",
+    "services:stop": "./tools/scripts/stop-services.sh",
+    "services:reset": "./tools/scripts/reset-dev.sh",
+    "docker:up": "docker compose -f tools/docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f tools/docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f tools/docker/docker-compose.yml logs -f",
+    "minio:setup": "cd apps/backend && pnpm exec tsx ../../tools/scripts/setup-minio.ts"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -39,9 +48,11 @@
   "license": "ISC",
   "packageManager": "pnpm@10.12.1",
   "devDependencies": {
+    "@eslint/js": "^9.32.0",
     "@typescript-eslint/eslint-plugin": "^8.39.0",
     "@typescript-eslint/parser": "^8.39.0",
     "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.4",
     "prettier": "^3.6.2",

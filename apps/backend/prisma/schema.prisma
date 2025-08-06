@@ -1,15 +1,242 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  admin
+  user
+  guest
+}
+
+enum ProjectStatus {
+  active
+  archived
+  deleted
+}
+
+enum DocumentStatus {
+  uploading
+  uploaded
+  processing
+  processed
+  failed
+  deleted
+}
+
+enum DocumentType {
+  pdf
+  docx
+  pptx
+  txt
+  image
+  other
+}
+
+enum ConversationStatus {
+  active
+  archived
+  deleted
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+// Core Models for MVP
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String    @unique @db.VarChar(255)
+  name          String    @db.VarChar(255)
+  passwordHash  String    @map("password_hash") @db.VarChar(255)
+  role          UserRole  @default(user)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz
+  isActive      Boolean   @default(true) @map("is_active")
+  preferences   Json      @default("{}") @db.JsonB
+
+  // Relationships
+  projects      Project[]
+  documents     Document[]
+  conversations Conversation[]
+  messages      Message[]
+  sessions      Session[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Project {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  name             String        @db.VarChar(255)
+  description      String?       @db.Text
+  status           ProjectStatus @default(active)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  settings         Json          @default("{}") @db.JsonB
+  documentCount    Int           @default(0) @map("document_count")
+  totalSizeBytes   BigInt        @default(0) @map("total_size_bytes")
+
+  // Relationships
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents     Document[]
+  conversations Conversation[]
+
+  @@map("projects")
+}
+
+model Document {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId         String         @map("project_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  originalFilename  String         @map("original_filename") @db.VarChar(255)
+  storedFilename    String         @map("stored_filename") @db.VarChar(255)
+  mimeType          String         @map("mime_type") @db.VarChar(100)
+  fileSizeBytes     BigInt         @map("file_size_bytes")
+  status            DocumentStatus @default(uploading)
+  documentType      DocumentType   @map("document_type")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  processedAt       DateTime?      @map("processed_at") @db.Timestamptz
+  metadata          Json           @default("{}") @db.JsonB
+  processingError   String?        @map("processing_error") @db.Text
+  processingProgress Float         @default(0) @map("processing_progress")
+
+  // Relationships
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages          Page[]
+  documentChunks DocumentChunk[]
+
+  @@map("documents")
+}
+
+model Page {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId        String    @map("document_id") @db.Uuid
+  pageNumber        Int       @map("page_number")
+  imagePath         String?   @map("image_path") @db.VarChar(500)
+  extractedText     String?   @map("extracted_text") @db.Text
+  ocrMetadata       Json?     @map("ocr_metadata") @db.JsonB
+  confidenceScore   Float?    @map("confidence_score")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  boundingBoxes     Json?     @map("bounding_boxes") @db.JsonB
+  languageDetected  String?   @map("language_detected") @db.VarChar(10)
+
+  // Relationships
+  document       Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentChunks DocumentChunk[]
+
+  @@unique([documentId, pageNumber])
+  @@map("pages")
+}
+
+model DocumentChunk {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId       String   @map("document_id") @db.Uuid
+  pageId           String?  @map("page_id") @db.Uuid
+  chunkIndex       Int      @map("chunk_index")
+  content          String   @db.Text
+  embeddingVector  Json?    @map("embedding_vector") @db.JsonB
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+  metadata         Json     @default("{}") @db.JsonB
+  startChar        Int?     @map("start_char")
+  endChar          Int?     @map("end_char")
+
+  // Relationships
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  page     Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, chunkIndex])
+  @@map("document_chunks")
+}
+
+model Conversation {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId       String             @map("project_id") @db.Uuid
+  userId          String             @map("user_id") @db.Uuid
+  title           String             @db.VarChar(255)
+  status          ConversationStatus @default(active)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  lastMessageAt   DateTime?          @map("last_message_at") @db.Timestamptz
+  messageCount    Int                @default(0) @map("message_count")
+  contextSettings Json               @default("{}") @map("context_settings") @db.JsonB
+
+  // Relationships
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId     String      @map("conversation_id") @db.Uuid
+  userId             String      @map("user_id") @db.Uuid
+  role               MessageRole
+  content            String      @db.Text
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  metadata           Json        @default("{}") @db.JsonB
+  citations          Json?       @db.JsonB
+  confidenceScore    Float?      @map("confidence_score")
+  processingTimeMs   Int?        @map("processing_time_ms")
+  parentMessageId    String?     @map("parent_message_id") @db.Uuid
+
+  // Relationships
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentMessage Message?     @relation("MessageReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies       Message[]    @relation("MessageReplies")
+
+  @@map("messages")
+}
+
+model Session {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  sessionToken   String    @unique @map("session_token") @db.VarChar(255)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz
+  lastAccessedAt DateTime  @default(now()) @map("last_accessed_at") @db.Timestamptz
+  metadata       Json      @default("{}") @db.JsonB
+  ipAddress      String?   @map("ip_address") @db.Inet
+  userAgent      String?   @map("user_agent") @db.Text
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model AuditLog {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String?   @map("user_id") @db.Uuid
+  action       String    @db.VarChar(100)
+  resourceType String    @map("resource_type") @db.VarChar(100)
+  resourceId   String?   @map("resource_id") @db.Uuid
+  oldValues    Json?     @map("old_values") @db.JsonB
+  newValues    Json?     @map("new_values") @db.JsonB
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  ipAddress    String?   @map("ip_address") @db.Inet
+  userAgent    String?   @map("user_agent") @db.Text
+
+  // Relationships
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
 }
