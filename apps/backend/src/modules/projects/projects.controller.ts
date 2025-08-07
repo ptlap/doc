@@ -28,18 +28,22 @@ import { ProjectQueryDto } from './dto/project-query.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
 import { PaginatedProjectsDto } from './dto/paginated-projects.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { currentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/enums/role.enum';
 import type { User } from '@prisma/client';
 
 @ApiTags('Projects')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({
     status: 201,
@@ -62,6 +66,7 @@ export class ProjectsController {
   }
 
   @Get()
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Get all projects for current user' })
   @ApiResponse({
     status: 200,
@@ -80,6 +85,7 @@ export class ProjectsController {
   }
 
   @Get(':id')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Get a specific project by ID' })
   @ApiParam({
     name: 'id',
@@ -115,6 +121,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Update a project' })
   @ApiParam({
     name: 'id',
@@ -148,6 +155,7 @@ export class ProjectsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Delete a project' })
   @ApiParam({
     name: 'id',
@@ -178,6 +186,7 @@ export class ProjectsController {
   }
 
   @Get(':id/stats')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Get detailed project statistics' })
   @ApiParam({
     name: 'id',

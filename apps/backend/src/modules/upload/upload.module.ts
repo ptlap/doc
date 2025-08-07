@@ -3,8 +3,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
-import { StorageService } from '../../common/services/storage.service';
-import { PrismaService } from '../../common/services/prisma.service';
+
 import { ProjectsModule } from '../projects/projects.module';
 import { ProcessingModule } from '../processing/processing.module';
 
@@ -46,7 +45,7 @@ import { ProcessingModule } from '../processing/processing.module';
     }),
   ],
   controllers: [UploadController],
-  providers: [UploadService, StorageService, PrismaService],
+  providers: [UploadService],
   exports: [UploadService],
 })
 export class UploadModule {}

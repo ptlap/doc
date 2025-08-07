@@ -28,12 +28,15 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentResponseDto } from './dto/document-response.dto';
 import { UploadProgressDto } from './dto/upload-progress.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { currentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/enums/role.enum';
 import type { User } from '@prisma/client';
 
 @ApiTags('Upload')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
@@ -41,6 +44,7 @@ export class UploadController {
   @Post('document')
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('file'))
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Upload a document for processing' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -119,6 +123,7 @@ export class UploadController {
   }
 
   @Get('progress/:documentId')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Get upload/processing progress for a document' })
   @ApiResponse({
     status: 200,
@@ -136,6 +141,7 @@ export class UploadController {
   }
 
   @Get('file/:documentId')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Download original document file' })
   @ApiResponse({
     status: 200,
@@ -165,6 +171,7 @@ export class UploadController {
   }
 
   @Get('preview/:documentId')
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Get document preview URL' })
   @ApiResponse({
     status: 200,
@@ -187,6 +194,7 @@ export class UploadController {
 
   @Post('validate')
   @UseInterceptors(FileInterceptor('file'))
+  @Roles(Role.USER, Role.ADMIN)
   @ApiOperation({ summary: 'Validate file before upload' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ProcessingService } from './processing.service';
 import { ProcessingController } from './processing.controller';
-import { PrismaService } from '../../common/services/prisma.service';
-import { StorageService } from '../../common/services/storage.service';
+
 import { ProcessorFactory } from '../../common/processors/processor-factory';
 import { PdfProcessor } from '../../common/processors/pdf-processor';
 import { ImageProcessor } from '../../common/processors/image-processor';
@@ -13,8 +12,6 @@ import { TextProcessor } from '../../common/processors/text-processor';
   controllers: [ProcessingController],
   providers: [
     ProcessingService,
-    PrismaService,
-    StorageService,
     ProcessorFactory,
     PdfProcessor,
     ImageProcessor,
