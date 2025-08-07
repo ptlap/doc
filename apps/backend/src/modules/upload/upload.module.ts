@@ -5,9 +5,13 @@ import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
 import { StorageService } from '../../common/services/storage.service';
 import { PrismaService } from '../../common/services/prisma.service';
+import { ProjectsModule } from '../projects/projects.module';
+import { ProcessingModule } from '../processing/processing.module';
 
 @Module({
   imports: [
+    ProjectsModule,
+    ProcessingModule,
     MulterModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

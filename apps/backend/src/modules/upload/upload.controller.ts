@@ -11,6 +11,7 @@ import {
   Param,
   Res,
   NotFoundException,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -19,14 +20,20 @@ import {
   ApiResponse,
   ApiConsumes,
   ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { UploadService } from './upload.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentResponseDto } from './dto/document-response.dto';
 import { UploadProgressDto } from './dto/upload-progress.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { User } from '@prisma/client';
 
 @ApiTags('Upload')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
@@ -74,6 +81,7 @@ export class UploadController {
   async uploadDocument(
     @UploadedFile() file: Express.Multer.File,
     @Body() createDocumentDto: CreateDocumentDto,
+    @CurrentUser() user: User,
   ): Promise<DocumentResponseDto> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
@@ -104,7 +112,10 @@ export class UploadController {
       );
     }
 
-    return await this.uploadService.uploadDocument(file, createDocumentDto);
+    return await this.uploadService.uploadDocument(file, {
+      ...createDocumentDto,
+      userId: user.id,
+    });
   }
 
   @Get('progress/:documentId')

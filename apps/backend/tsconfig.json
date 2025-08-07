@@ -12,10 +12,20 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    // Strict Type Checking Options
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": false, // Disabled for DTOs
+    "noImplicitThis": true,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+    // Additional Checks
+    "noUnusedLocals": false, // Disabled to avoid decorator parameter issues
+    "noUnusedParameters": false, // Disabled to avoid decorator parameter issues
+    "exactOptionalPropertyTypes": false // Disabled for Prisma compatibility
   }
 }

@@ -13,7 +13,17 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentResponseDto } from './dto/document-response.dto';
 import { UploadProgressDto } from './dto/upload-progress.dto';
 import { DocumentStatus, DocumentType } from '../../types/prisma.types';
+import { ProjectsService } from '../projects/projects.service';
+import { ProcessingService } from '../processing/processing.service';
 import type { Document, Project, User } from '@prisma/client';
+
+interface ProjectSettings {
+  language?: string;
+  ocrEnabled?: boolean;
+  extractImages?: boolean;
+  preserveFormatting?: boolean;
+  quality?: string;
+}
 
 @Injectable()
 export class UploadService {
@@ -22,6 +32,8 @@ export class UploadService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
+    private readonly projectsService: ProjectsService,
+    private readonly processingService: ProcessingService,
   ) {}
 
   async uploadDocument(
@@ -29,6 +41,10 @@ export class UploadService {
     createDocumentDto: CreateDocumentDto,
   ): Promise<DocumentResponseDto> {
     const { projectId, userId } = createDocumentDto;
+
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
 
     // Verify project exists and user has access
     const project = await this.prisma.project.findFirst({
@@ -119,8 +135,11 @@ export class UploadService {
 
       this.logger.log(`Document uploaded successfully: ${document.id}`);
 
-      // TODO: Trigger document processing pipeline
-      // await this.triggerDocumentProcessing(document.id);
+      // Trigger document processing pipeline automatically
+      void this.triggerDocumentProcessing(
+        document.id,
+        updatedDocument.project.settings as ProjectSettings,
+      );
 
       return this.mapToDocumentResponse(updatedDocument);
     } catch (error) {
@@ -285,13 +304,42 @@ export class UploadService {
     };
   }
 
-  // TODO: Implement document processing pipeline trigger
-  // private async triggerDocumentProcessing(documentId: string): Promise<void> {
-  //   // This will trigger the document processing pipeline
-  //   // - Convert DOCX/PPTX to PDF
-  //   // - Extract pages as images
-  //   // - Run OCR
-  //   // - Generate embeddings
-  //   // - Store in vector database
-  // }
+  private triggerDocumentProcessing(
+    documentId: string,
+    projectSettings: ProjectSettings = {},
+  ): void {
+    try {
+      // Extract processing options from project settings
+      const processingOptions = {
+        language: projectSettings.language || 'eng',
+        ocrEnabled: projectSettings.ocrEnabled ?? true,
+        extractImages: projectSettings.extractImages ?? false,
+        preserveFormatting: projectSettings.preserveFormatting ?? false,
+        quality: (projectSettings.quality || 'medium') as
+          | 'low'
+          | 'medium'
+          | 'high',
+        priority: 'normal' as const,
+      };
+
+      this.logger.log(`Triggering processing for document: ${documentId}`);
+
+      // Start processing asynchronously (don't await to avoid blocking upload response)
+      this.processingService
+        .processDocument(documentId, processingOptions)
+        .catch((error) => {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.error(
+            `Auto-processing failed for document ${documentId}: ${errorMessage}`,
+          );
+        });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to trigger processing for document ${documentId}: ${errorMessage}`,
+      );
+    }
+  }
 }

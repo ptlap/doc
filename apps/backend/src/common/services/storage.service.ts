@@ -256,7 +256,8 @@ export class StorageService {
 
       const chunks: Buffer[] = [];
       for await (const chunk of stream) {
-        chunks.push(chunk);
+        const buffer = chunk as Buffer;
+        chunks.push(buffer);
       }
 
       return Buffer.concat(chunks);
