@@ -293,4 +293,87 @@ export class AuthService {
       },
     });
   }
+
+  // Admin-only methods
+  async getAllUsers() {
+    return await this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        lastLoginAt: true,
+        preferences: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async getSystemStats() {
+    const [totalUsers, activeUsers, totalProjects, totalDocuments] =
+      await Promise.all([
+        this.prisma.user.count(),
+        this.prisma.user.count({ where: { isActive: true } }),
+        this.prisma.project.count(),
+        this.prisma.document.count(),
+      ]);
+
+    return {
+      totalUsers,
+      activeUsers,
+      totalProjects,
+      totalDocuments,
+      systemInfo: {
+        version: process.env.APP_VERSION || '1.0.0',
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development',
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  async getUserDashboard(userId: string) {
+    const [projectCount, documentCount, recentProjects] = await Promise.all([
+      this.prisma.project.count({ where: { userId } }),
+      this.prisma.document.count({ where: { userId } }),
+      this.prisma.project.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          name: true,
+          updatedAt: true,
+          documentCount: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+      }),
+    ]);
+
+    // Calculate total storage used
+    const storageResult = await this.prisma.document.aggregate({
+      where: { userId },
+      _sum: {
+        fileSizeBytes: true,
+      },
+    });
+
+    const storageUsed = Number(storageResult._sum.fileSizeBytes || 0);
+
+    return {
+      projectCount,
+      documentCount,
+      storageUsed,
+      recentActivity: recentProjects.map((project) => ({
+        type: 'project',
+        id: project.id,
+        name: project.name,
+        updatedAt: project.updatedAt,
+        documentCount: project.documentCount,
+      })),
+    };
+  }
 }

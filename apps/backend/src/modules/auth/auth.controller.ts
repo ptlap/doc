@@ -24,10 +24,14 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 // import { LocalAuthGuard } from '../../common/guards/local-auth.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { publicDecorator } from '../../common/decorators/public.decorator';
 import { currentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/enums/role.enum';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -161,8 +165,8 @@ export class AuthController {
     status: 401,
     description: 'Unauthorized - invalid refresh token',
   })
-  async refresh(@Body('refreshToken') refreshToken: string) {
-    return await this.authService.refreshToken(refreshToken);
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    return await this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
   @Get('profile')
@@ -191,5 +195,108 @@ export class AuthController {
   })
   getProfile(@currentUser() user: User): User {
     return user;
+  }
+
+  @Get('admin/users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Users retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          email: { type: 'string' },
+          name: { type: 'string' },
+          role: { type: 'string' },
+          isActive: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  async getAllUsers() {
+    return await this.authService.getAllUsers();
+  }
+
+  @Get('admin/stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get system statistics (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        totalUsers: { type: 'number' },
+        activeUsers: { type: 'number' },
+        totalProjects: { type: 'number' },
+        totalDocuments: { type: 'number' },
+        systemInfo: {
+          type: 'object',
+          properties: {
+            version: { type: 'string' },
+            uptime: { type: 'number' },
+            environment: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  async getSystemStats() {
+    return await this.authService.getSystemStats();
+  }
+
+  @Get('user/dashboard')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER, Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get user dashboard (User and Admin)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard data retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        projectCount: { type: 'number' },
+        documentCount: { type: 'number' },
+        recentActivity: { type: 'array' },
+        storageUsed: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  async getUserDashboard(@currentUser() user: User) {
+    return await this.authService.getUserDashboard(user.id);
   }
 }
