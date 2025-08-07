@@ -1,15 +1,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ProcessingModule } from './modules/processing/processing.module';
 import { UploadModule } from './modules/upload/upload.module';
-import { PrismaService } from './common/services/prisma.service';
-import { AppLoggerService } from './common/services/app-logger.service';
+import { AdminModule } from './modules/admin/admin.module';
+import { ManagementModule } from './modules/management/management.module';
+import { CommonModule } from './common/common.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RbacExceptionFilter } from './common/filters/rbac-exception.filter';
+import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
 import configuration from './common/config/configuration';
 import { configValidationSchema } from './common/config/config.schema';
 import storageConfig from './config/storage.config';
@@ -31,21 +34,29 @@ import storageConfig from './config/storage.config';
         abortEarly: true,
       },
     }),
+    CommonModule,
     AuthModule,
     ProjectsModule,
     ProcessingModule,
     UploadModule,
+    AdminModule,
+    ManagementModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    PrismaService,
-    AppLoggerService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+    {
+      provide: APP_FILTER,
+      useClass: RbacExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PerformanceInterceptor,
+    },
   ],
-  exports: [AppLoggerService],
 })
 export class AppModule {}
