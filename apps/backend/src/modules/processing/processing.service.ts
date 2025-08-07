@@ -314,7 +314,7 @@ export class ProcessingService {
           extractedText: pageResult.text || '',
           confidenceScore: pageResult.confidence,
           ocrMetadata: pageResult.metadata,
-          boundingBoxes: (pageResult.boundingBoxes || []) as any,
+          boundingBoxes: JSON.stringify(pageResult.boundingBoxes || []),
         },
       });
 
