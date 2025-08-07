@@ -6,7 +6,7 @@ export const ROLES_KEY = 'roles';
 /**
  * Decorator to specify required roles for accessing an endpoint
  * @param roles - Array of roles that can access the endpoint
- * 
+ *
  * @example
  * ```typescript
  * @Roles(Role.ADMIN)
@@ -14,7 +14,7 @@ export const ROLES_KEY = 'roles';
  * adminOnlyEndpoint() {
  *   return 'Admin only content';
  * }
- * 
+ *
  * @Roles(Role.ADMIN, Role.USER)
  * @Get('user-content')
  * userContent() {

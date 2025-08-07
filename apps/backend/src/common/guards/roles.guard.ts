@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  Logger,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { Role } from '../enums/role.enum';
@@ -7,7 +12,7 @@ interface RequestWithUser {
   user: {
     id: string;
     email: string;
-    role: string;
+    role: Role;
     isActive: boolean;
   };
 }
@@ -36,13 +41,17 @@ export class RolesGuard implements CanActivate {
 
     // Check if user exists (should be guaranteed by JwtAuthGuard)
     if (!user) {
-      this.logger.warn('RolesGuard: No user found in request. Make sure JwtAuthGuard runs before RolesGuard.');
+      this.logger.warn(
+        'RolesGuard: No user found in request. Make sure JwtAuthGuard runs before RolesGuard.',
+      );
       return false;
     }
 
     // Check if user is active
     if (!user.isActive) {
-      this.logger.warn(`RolesGuard: Inactive user ${user.email} attempted to access protected resource`);
+      this.logger.warn(
+        `RolesGuard: Inactive user ${user.email} attempted to access protected resource`,
+      );
       return false;
     }
 
@@ -51,11 +60,11 @@ export class RolesGuard implements CanActivate {
 
     if (!hasRequiredRole) {
       this.logger.warn(
-        `RolesGuard: User ${user.email} with role '${user.role}' attempted to access resource requiring roles: [${requiredRoles.join(', ')}]`
+        `RolesGuard: User ${user.email} with role '${user.role}' attempted to access resource requiring roles: [${requiredRoles.join(', ')}]`,
       );
     } else {
       this.logger.debug(
-        `RolesGuard: User ${user.email} with role '${user.role}' granted access to resource requiring roles: [${requiredRoles.join(', ')}]`
+        `RolesGuard: User ${user.email} with role '${user.role}' granted access to resource requiring roles: [${requiredRoles.join(', ')}]`,
       );
     }
 
