@@ -23,7 +23,7 @@ import {
   ProcessDocumentOptions,
 } from './processing.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { currentUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../common/services/prisma.service';
 import type { User } from '@prisma/client';
 
@@ -111,7 +111,7 @@ export class ProcessingController {
   async processDocument(
     @Param('id', ParseUUIDPipe) documentId: string,
     @Body() options: ProcessDocumentOptions = {},
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ) {
     // Verify user owns the document
     const document = await this.prisma.document.findFirst({
@@ -157,7 +157,7 @@ export class ProcessingController {
   async reprocessDocument(
     @Param('id', ParseUUIDPipe) documentId: string,
     @Body() options: ProcessDocumentOptions = {},
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ) {
     // Verify user owns the document
     const document = await this.prisma.document.findFirst({
@@ -221,7 +221,7 @@ export class ProcessingController {
   })
   async getProcessingProgress(
     @Param('id', ParseUUIDPipe) documentId: string,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ) {
     // Verify user owns the document
     const document = await this.prisma.document.findFirst({
@@ -314,7 +314,7 @@ export class ProcessingController {
   })
   async getDocumentPages(
     @Param('id', ParseUUIDPipe) documentId: string,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ) {
     // Verify user owns the document
     const document = await this.prisma.document.findFirst({
@@ -349,7 +349,7 @@ export class ProcessingController {
   })
   async getDocumentChunks(
     @Param('id', ParseUUIDPipe) documentId: string,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ) {
     // Verify user owns the document
     const document = await this.prisma.document.findFirst({

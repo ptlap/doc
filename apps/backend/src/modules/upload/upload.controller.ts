@@ -28,7 +28,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentResponseDto } from './dto/document-response.dto';
 import { UploadProgressDto } from './dto/upload-progress.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { currentUser } from '../../common/decorators/current-user.decorator';
 import type { User } from '@prisma/client';
 
 @ApiTags('Upload')
@@ -81,7 +81,7 @@ export class UploadController {
   async uploadDocument(
     @UploadedFile() file: Express.Multer.File,
     @Body() createDocumentDto: CreateDocumentDto,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ): Promise<DocumentResponseDto> {
     if (!file) {
       throw new BadRequestException('No file uploaded');

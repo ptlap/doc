@@ -28,7 +28,7 @@ import { ProjectQueryDto } from './dto/project-query.dto';
 import { ProjectResponseDto } from './dto/project-response.dto';
 import { PaginatedProjectsDto } from './dto/paginated-projects.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { currentUser } from '../../common/decorators/current-user.decorator';
 import type { User } from '@prisma/client';
 
 @ApiTags('Projects')
@@ -56,7 +56,7 @@ export class ProjectsController {
   })
   async create(
     @Body() createProjectDto: CreateProjectDto,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ): Promise<ProjectResponseDto> {
     return await this.projectsService.create(createProjectDto, user.id);
   }
@@ -74,7 +74,7 @@ export class ProjectsController {
   })
   async findAll(
     @Query() query: ProjectQueryDto,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ): Promise<PaginatedProjectsDto> {
     return await this.projectsService.findAll(query, user.id);
   }
@@ -107,7 +107,7 @@ export class ProjectsController {
   })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
     @Query('includeStats', new ParseBoolPipe({ optional: true }))
     includeStats?: boolean,
   ): Promise<ProjectResponseDto> {
@@ -141,7 +141,7 @@ export class ProjectsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateProjectDto: UpdateProjectDto,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ): Promise<ProjectResponseDto> {
     return await this.projectsService.update(id, updateProjectDto, user.id);
   }
@@ -172,7 +172,7 @@ export class ProjectsController {
   })
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ): Promise<void> {
     await this.projectsService.remove(id, user.id);
   }
@@ -207,7 +207,7 @@ export class ProjectsController {
   })
   async getStats(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: User,
+    @currentUser() user: User,
   ) {
     // First check if user can access the project
     const canAccess = await this.projectsService.canAccessProject(id, user.id);

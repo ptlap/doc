@@ -26,15 +26,15 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 // import { LocalAuthGuard } from '../../common/guards/local-auth.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { Public } from '../../common/decorators/public.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { publicDecorator } from '../../common/decorators/public.decorator';
+import { currentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Public()
+  @publicDecorator()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user' })
@@ -70,7 +70,7 @@ export class AuthController {
     return await this.authService.register(registerDto);
   }
 
-  @Public()
+  @publicDecorator()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
@@ -120,7 +120,7 @@ export class AuthController {
     status: 401,
     description: 'Unauthorized - invalid token',
   })
-  async logout(@Request() req: RequestWithHeaders, @CurrentUser() user: User) {
+  async logout(@Request() req: RequestWithHeaders, @currentUser() user: User) {
     const sessionToken = req.headers?.authorization?.replace(
       'Bearer ',
       '',
@@ -129,7 +129,7 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
-  @Public()
+  @publicDecorator()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
@@ -189,7 +189,7 @@ export class AuthController {
     status: 401,
     description: 'Unauthorized - invalid token',
   })
-  getProfile(@CurrentUser() user: User): User {
+  getProfile(@currentUser() user: User): User {
     return user;
   }
 }
