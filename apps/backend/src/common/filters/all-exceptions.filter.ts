@@ -5,14 +5,22 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { RbacExceptionFilter } from './rbac-exception.filter';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
+  private readonly rbacExceptionFilter = new RbacExceptionFilter();
 
   catch(exception: unknown, host: ArgumentsHost): void {
+    // Delegate ForbiddenException to RbacExceptionFilter for enhanced error messages
+    if (exception instanceof ForbiddenException) {
+      this.rbacExceptionFilter.catch(exception, host);
+      return;
+    }
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();

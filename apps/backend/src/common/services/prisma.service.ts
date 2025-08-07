@@ -16,9 +16,7 @@ export class PrismaService
   constructor() {
     super({
       log:
-        process.env.NODE_ENV === 'development'
-          ? ['query', 'info', 'warn', 'error']
-          : ['error'],
+        process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     });
   }
 
