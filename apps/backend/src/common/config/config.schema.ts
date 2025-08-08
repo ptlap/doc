@@ -19,6 +19,9 @@ export const configValidationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
 
+  // Redis (optional)
+  REDIS_URL: Joi.string().uri().optional(),
+
   // AWS S3 (optional in development)
   AWS_REGION: Joi.string().when('NODE_ENV', {
     is: 'production',
