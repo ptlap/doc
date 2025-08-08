@@ -12,6 +12,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   ParseBoolPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -32,6 +33,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { currentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { Policy } from '../../common/decorators/policy.decorator';
 import type { User } from '@prisma/client';
 
 @ApiTags('Projects')
@@ -86,6 +88,7 @@ export class ProjectsController {
 
   @Get(':id')
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read', where: { ownerId: 'self' } }] })
   @ApiOperation({ summary: 'Get a specific project by ID' })
   @ApiParam({
     name: 'id',
@@ -187,6 +190,7 @@ export class ProjectsController {
 
   @Get(':id/stats')
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read', where: { ownerId: 'self' } }] })
   @ApiOperation({ summary: 'Get detailed project statistics' })
   @ApiParam({
     name: 'id',
@@ -221,7 +225,7 @@ export class ProjectsController {
     // First check if user can access the project
     const canAccess = await this.projectsService.canAccessProject(id, user.id);
     if (!canAccess) {
-      throw new Error('Project not found');
+      throw new NotFoundException('Project not found');
     }
 
     return await this.projectsService.getProjectStats(id);
