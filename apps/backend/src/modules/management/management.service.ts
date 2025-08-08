@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/services/prisma.service';
+import { PermissionsService } from '../../common/services/permissions.service';
 
 interface GetAuditLogsOptions {
   page: number;
@@ -17,7 +18,10 @@ interface GetAlertsOptions {
 export class ManagementService {
   private readonly logger = new Logger(ManagementService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   async getSystemConfig(): Promise<Record<string, unknown>> {
     // In a real application, this would fetch from a configuration store
@@ -65,6 +69,14 @@ export class ManagementService {
   ): Promise<Record<string, unknown>> {
     await new Promise((resolve) => setTimeout(resolve, 1)); // Simulate async work
     this.logger.log(`System configuration updated by admin ${adminId}`);
+
+    // Invalidate permissions cache if related config changed
+    const maybeRoles =
+      configDto && typeof configDto === 'object' ? configDto.roles : undefined;
+    if (maybeRoles && typeof maybeRoles === 'object') {
+      // Broadly invalidate all roles to be safe
+      this.permissionsService.invalidateAll();
+    }
 
     // In a real application, you would validate and save the configuration
     // For now, we'll just return the updated config

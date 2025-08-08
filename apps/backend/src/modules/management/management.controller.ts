@@ -22,6 +22,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Policy } from '../../common/decorators/policy.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { currentUser } from '../../common/decorators/current-user.decorator';
 import { ManagementService } from './management.service';
@@ -36,6 +37,7 @@ export class ManagementController {
 
   @Get('config')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get system configuration' })
   @ApiResponse({
     status: 200,
@@ -47,6 +49,7 @@ export class ManagementController {
 
   @Put('config')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @ApiOperation({ summary: 'Update system configuration' })
   @ApiResponse({
     status: 200,
@@ -61,6 +64,7 @@ export class ManagementController {
 
   @Get('backups')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get list of system backups' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
@@ -73,6 +77,7 @@ export class ManagementController {
 
   @Post('backups')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @ApiOperation({ summary: 'Create system backup' })
   @ApiResponse({
     status: 201,
@@ -84,6 +89,7 @@ export class ManagementController {
 
   @Post('backups/:id/restore')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @ApiOperation({ summary: 'Restore from backup' })
   @ApiParam({ name: 'id', description: 'Backup ID' })
   @ApiResponse({
@@ -99,6 +105,7 @@ export class ManagementController {
 
   @Get('monitoring/metrics')
   @Roles(Role.ADMIN, Role.USER) // Users can view basic metrics
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get system monitoring metrics' })
   @ApiQuery({ name: 'timeframe', required: false, type: String })
   @ApiResponse({
@@ -114,6 +121,7 @@ export class ManagementController {
 
   @Get('monitoring/alerts')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get system alerts' })
   @ApiQuery({ name: 'status', required: false, type: String })
   @ApiQuery({ name: 'severity', required: false, type: String })
@@ -130,6 +138,7 @@ export class ManagementController {
 
   @Put('monitoring/alerts/:id')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @ApiOperation({ summary: 'Update alert status' })
   @ApiParam({ name: 'id', description: 'Alert ID' })
   @ApiResponse({
@@ -150,6 +159,7 @@ export class ManagementController {
 
   @Get('security/audit-logs')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get security audit logs' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -175,6 +185,7 @@ export class ManagementController {
 
   @Get('security/sessions')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get active user sessions' })
   @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiResponse({
@@ -187,6 +198,7 @@ export class ManagementController {
 
   @Delete('security/sessions/:id')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Terminate user session' })
   @ApiParam({ name: 'id', description: 'Session ID' })
@@ -203,6 +215,7 @@ export class ManagementController {
 
   @Get('performance/reports')
   @Roles(Role.ADMIN, Role.USER) // Users can view basic performance reports
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get performance reports' })
   @ApiQuery({ name: 'type', required: false, type: String })
   @ApiQuery({ name: 'period', required: false, type: String })
@@ -224,6 +237,7 @@ export class ManagementController {
 
   @Post('maintenance/cleanup')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @ApiOperation({ summary: 'Run system cleanup tasks' })
   @ApiResponse({
     status: 200,
@@ -235,6 +249,7 @@ export class ManagementController {
 
   @Post('maintenance/optimize')
   @Roles(Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @ApiOperation({ summary: 'Run system optimization tasks' })
   @ApiResponse({
     status: 200,
