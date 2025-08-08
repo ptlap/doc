@@ -26,9 +26,10 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { currentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Policy } from '../../common/decorators/policy.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { PrismaService } from '../../common/services/prisma.service';
-import { publicDecorator } from '../../common/decorators/public.decorator';
+// import { publicDecorator } from '../../common/decorators/public.decorator';
 import type { User } from '@prisma/client';
 
 @ApiTags('Document Processing')
@@ -44,6 +45,7 @@ export class ProcessingController {
   @Post('documents/:id/process')
   @HttpCode(HttpStatus.ACCEPTED)
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:write' }] })
   @ApiOperation({ summary: 'Start document processing' })
   @ApiParam({
     name: 'id',
@@ -146,6 +148,7 @@ export class ProcessingController {
   @Post('documents/:id/reprocess')
   @HttpCode(HttpStatus.ACCEPTED)
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:write' }] })
   @ApiOperation({ summary: 'Reprocess document with new options' })
   @ApiParam({
     name: 'id',
@@ -192,6 +195,7 @@ export class ProcessingController {
 
   @Get('documents/:id/progress')
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read' }] })
   @ApiOperation({ summary: 'Get document processing progress' })
   @ApiParam({
     name: 'id',
@@ -253,7 +257,6 @@ export class ProcessingController {
   }
 
   @Get('supported-types')
-  @publicDecorator()
   @ApiOperation({ summary: 'Get supported file types for processing' })
   @ApiResponse({
     status: 200,
@@ -282,6 +285,8 @@ export class ProcessingController {
       },
     },
   })
+  @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read' }] })
   getSupportedTypes() {
     return {
       mimeTypes: this.processingService.getSupportedMimeTypes(),
