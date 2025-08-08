@@ -6,17 +6,21 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../common/services/prisma.service';
+import { PermissionsService } from '../../common/services/permissions.service';
+import { TokenBlocklistService } from '../../common/services/token-blocklist.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import * as bcrypt from 'bcryptjs';
+import { Role } from '../../common/enums/role.enum';
 
 type ValidatedUser = {
   id: string;
   email: string;
   name: string;
   role: string;
+  tenantId?: string | null;
   isActive: boolean;
   preferences: any;
 };
@@ -28,6 +32,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly permissionsService: PermissionsService,
+    private readonly tokenBlocklist: TokenBlocklistService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponse> {
@@ -43,11 +49,12 @@ export class AuthService {
     }
 
     // Hash password
-    const saltRounds = 12;
+    const saltRounds = process.env.NODE_ENV === 'test' ? 4 : 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     try {
-      // Create user
+      // Create user (tenant handling will be added when multi-tenant is fully enabled)
+
       const user = await this.prisma.user.create({
         data: {
           email,
@@ -72,8 +79,14 @@ export class AuthService {
         },
       });
 
-      // Generate JWT tokens
-      const tokens = await this.generateTokens(user.id, user.email, user.role);
+      // Generate JWT tokens (include tenant if available)
+      const tokens = await this.generateTokens(
+        user.id,
+        user.email,
+        user.role,
+        // During registration tenant may be assigned elsewhere; nullable supported
+        (user as { tenantId?: string | null }).tenantId,
+      );
 
       // Create session
       await this.createSession(user.id, tokens.accessToken);
@@ -125,8 +138,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate JWT tokens
-    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    // Generate JWT tokens (include tenant id)
+    const tenantId = await this.getTenantIdForUser(user.id);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      tenantId,
+    );
 
     // Create session
     await this.createSession(user.id, tokens.accessToken);
@@ -141,10 +160,11 @@ export class AuthService {
 
     // Remove password hash from response
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { passwordHash, ...rest } = user;
+    const responseUser = { ...rest, tenantId: tenantId ?? null };
 
     return {
-      user: userWithoutPassword,
+      user: responseUser,
       ...tokens,
     };
   }
@@ -158,6 +178,28 @@ export class AuthService {
           sessionToken,
         },
       });
+
+      // Best-effort: add token jti to blocklist until its natural expiry
+      try {
+        const decodedAny: unknown = this.jwtService.decode(sessionToken);
+        let jti: string | undefined;
+        let exp: number | undefined;
+        if (decodedAny !== null && typeof decodedAny === 'object') {
+          const obj: Record<string, unknown> = decodedAny as Record<
+            string,
+            unknown
+          >;
+          if (typeof obj['jti'] === 'string') jti = obj['jti'];
+          if (typeof obj['exp'] === 'number') exp = obj['exp'];
+        }
+        const nowSec = Math.floor(Date.now() / 1000);
+        const ttlSec = exp && exp > nowSec ? exp - nowSec : 0;
+        if (jti && ttlSec > 0) {
+          await this.tokenBlocklist.block(jti, ttlSec);
+        }
+      } catch {
+        // ignore blocklist failure
+      }
 
       this.logger.log(`User logged out successfully: ${userId}`);
     } catch (error) {
@@ -193,14 +235,21 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
-      // Generate new tokens
-      const tokens = await this.generateTokens(user.id, user.email, user.role);
+      // Generate new tokens (include tenant id)
+      const tenantId = await this.getTenantIdForUser(user.id);
+      const tokens = await this.generateTokens(
+        user.id,
+        user.email,
+        user.role,
+        tenantId,
+      );
 
       // Update session
       await this.createSession(user.id, tokens.accessToken);
 
+      const rest = user;
       return {
-        user,
+        user: { ...rest, tenantId: tenantId ?? null },
         ...tokens,
       };
     } catch (error) {
@@ -228,20 +277,69 @@ export class AuthService {
       return null;
     }
 
-    return user;
+    const tenantId =
+      payload.tenantId ?? (await this.getTenantIdForUser(user.id));
+    return { ...user, tenantId: tenantId ?? null };
   }
 
-  private async generateTokens(userId: string, email: string, role: string) {
+  private async getTenantIdForUser(
+    userId: string,
+  ): Promise<string | undefined> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{ tenant_id: string | null }>
+    >`
+      SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1
+    `;
+    const val =
+      Array.isArray(rows) && rows.length > 0 ? rows[0]?.tenant_id : null;
+    return typeof val === 'string' ? val : undefined;
+  }
+
+  private async generateTokens(
+    userId: string,
+    email: string,
+    role: string,
+    tenantId?: string | null,
+  ) {
+    // Compute permsHash for current role
+    const normalizedRole: Role = (Object.values(Role) as string[]).includes(
+      role,
+    )
+      ? (role as Role)
+      : Role.GUEST;
+    const permsHash =
+      this.permissionsService.getPermissionsHashForRole(normalizedRole);
+
+    // Compute tokenVersion: fetch from DB if present, else 0
+    const versionRows = await this.prisma.$queryRaw<
+      Array<{ token_version?: number }>
+    >`
+      SELECT token_version FROM users WHERE id = ${userId} LIMIT 1
+    `;
+    const tokenVersion =
+      Array.isArray(versionRows) &&
+      versionRows.length > 0 &&
+      typeof versionRows[0]?.token_version === 'number'
+        ? versionRows[0]?.token_version
+        : 0;
+
     const payload: JwtPayload = {
       sub: userId,
       email,
       role,
+      ...(typeof tenantId === 'string' ? { tenantId } : {}),
+      permsHash,
+      tokenVersion,
     };
+
+    // inject jti for access token only
+    const jti = `${userId}.${Date.now()}.${Math.random().toString(36).slice(2)}`;
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: process.env.JWT_SECRET || 'secret',
         expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+        jwtid: jti,
       }),
       this.jwtService.signAsync(payload, {
         secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',

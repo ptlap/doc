@@ -4,6 +4,7 @@ export interface AuthResponse {
     email: string;
     name: string;
     role: string;
+    tenantId?: string | null;
     isActive: boolean;
     createdAt: Date;
     preferences: any;
