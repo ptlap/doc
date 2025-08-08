@@ -53,6 +53,19 @@ enum MessageRole {
   system
 }
 
+// Tenancy
+model Tenant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique @db.VarChar(255)
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  users    User[]
+  projects Project[]
+  documents Document[]
+
+  @@map("tenants")
+}
+
 // Core Models for MVP
 model User {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -60,13 +73,16 @@ model User {
   name          String    @db.VarChar(255)
   passwordHash  String    @map("password_hash") @db.VarChar(255)
   role          UserRole  @default(user)
+  tenantId      String?   @map("tenant_id") @db.Uuid
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz
   isActive      Boolean   @default(true) @map("is_active")
   preferences   Json      @default("{}") @db.JsonB
+  tokenVersion  Int       @default(0) @map("token_version")
 
   // Relationships
+  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   projects      Project[]
   documents     Document[]
   conversations Conversation[]
@@ -80,6 +96,7 @@ model User {
 model Project {
   id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId           String        @map("user_id") @db.Uuid
+  tenantId         String?       @map("tenant_id") @db.Uuid
   name             String        @db.VarChar(255)
   description      String?       @db.Text
   status           ProjectStatus @default(active)
@@ -91,6 +108,7 @@ model Project {
 
   // Relationships
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   documents     Document[]
   conversations Conversation[]
 
@@ -101,6 +119,7 @@ model Document {
   id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   projectId         String         @map("project_id") @db.Uuid
   userId            String         @map("user_id") @db.Uuid
+  tenantId          String?        @map("tenant_id") @db.Uuid
   originalFilename  String         @map("original_filename") @db.VarChar(255)
   storedFilename    String         @map("stored_filename") @db.VarChar(255)
   mimeType          String         @map("mime_type") @db.VarChar(100)
@@ -117,6 +136,7 @@ model Document {
   // Relationships
   project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   pages          Page[]
   documentChunks DocumentChunk[]
 
