@@ -219,7 +219,7 @@ export class AdminService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { role: newRole },
+      data: { role: newRole, tokenVersion: { increment: 1 } },
       select: {
         id: true,
         email: true,
@@ -253,7 +253,7 @@ export class AdminService {
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { isActive },
+      data: { isActive, tokenVersion: { increment: 1 } },
       select: {
         id: true,
         email: true,

@@ -24,6 +24,10 @@ export default [
         require: 'readonly',
         exports: 'readonly',
         Express: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
       },
     },
     plugins: {

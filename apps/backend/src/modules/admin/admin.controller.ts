@@ -18,6 +18,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { AdminOnly } from '../../common/decorators/admin-only.decorator';
+import { Policy } from '../../common/decorators/policy.decorator';
 import { currentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/enums/role.enum';
 import { AdminService } from './admin.service';
@@ -30,6 +31,9 @@ export class AdminController {
 
   @Get('dashboard')
   @AdminOnly()
+  @Policy({
+    anyOf: [{ perm: 'admin:users:read' }, { perm: 'management:config:read' }],
+  })
   @ApiOperation({ summary: 'Get admin dashboard overview' })
   @ApiResponse({
     status: 200,
@@ -52,6 +56,7 @@ export class AdminController {
 
   @Get('users')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:read' }] })
   @ApiOperation({ summary: 'Get all users with pagination and filters' })
   @ApiQuery({
     name: 'page',
@@ -120,6 +125,7 @@ export class AdminController {
 
   @Get('users/:id')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:read' }] })
   @ApiOperation({ summary: 'Get user details by ID' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
@@ -136,6 +142,7 @@ export class AdminController {
 
   @Put('users/:id/role')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:write' }] })
   @ApiOperation({ summary: 'Update user role' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
@@ -156,6 +163,7 @@ export class AdminController {
 
   @Put('users/:id/status')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:write' }] })
   @ApiOperation({ summary: 'Update user status (activate/deactivate)' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({
@@ -176,6 +184,7 @@ export class AdminController {
 
   @Delete('users/:id')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:write' }] })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete user (soft delete)' })
   @ApiParam({ name: 'id', description: 'User ID' })
@@ -189,6 +198,7 @@ export class AdminController {
 
   @Get('projects')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:read' }] })
   @ApiOperation({ summary: 'Get all projects across all users' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -211,6 +221,7 @@ export class AdminController {
 
   @Get('documents')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:read' }] })
   @ApiOperation({ summary: 'Get all documents across all users' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -233,6 +244,7 @@ export class AdminController {
 
   @Get('system/health')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get system health status' })
   @ApiResponse({
     status: 200,
@@ -254,6 +266,7 @@ export class AdminController {
 
   @Get('system/logs')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get system logs' })
   @ApiQuery({
     name: 'level',
@@ -283,17 +296,20 @@ export class AdminController {
 
   @Post('system/maintenance')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'management:config:write' }] })
   @ApiOperation({ summary: 'Trigger system maintenance tasks' })
   @ApiResponse({
     status: 200,
     description: 'Maintenance tasks started successfully',
   })
+  @HttpCode(HttpStatus.OK)
   async triggerMaintenance(@currentUser() admin: User) {
     return await this.adminService.triggerMaintenance(admin.id);
   }
 
   @Get('analytics/usage')
   @AdminOnly()
+  @Policy({ anyOf: [{ perm: 'admin:users:read' }] })
   @ApiOperation({ summary: 'Get system usage analytics' })
   @ApiQuery({
     name: 'period',
