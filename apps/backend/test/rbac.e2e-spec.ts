@@ -375,6 +375,54 @@ describe('RBAC E2E Tests', () => {
   });
 
   describe('Projects Module RBAC', () => {
+    it('should enforce ownership: owner 200, other user 403 (or 404)', async () => {
+      // Create a project owned by regularUser
+      const project = await prisma.project.create({
+        data: {
+          userId: regularUser.id,
+          name: 'Proj1',
+          status: 'active',
+          documentCount: 0,
+          totalSizeBytes: BigInt(0),
+        },
+      });
+
+      // Owner can access
+      await request(app.getHttpServer() as Server)
+        .get(`/projects/${project.id}`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(200);
+
+      // Admin is not the owner: policy does NOT allow override → expect 404
+      await request(app.getHttpServer() as Server)
+        .get(`/projects/${project.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(404);
+
+      // Create another user who is not the owner
+      const hash = await bcrypt.hash('pw2', 4);
+      const another = await prisma.user.create({
+        data: {
+          email: 'user2-test@example.com',
+          name: 'U2',
+          passwordHash: hash,
+          role: Role.USER,
+          isActive: true,
+          preferences: {},
+        },
+      });
+      const login2 = await authService.login({
+        email: another.email,
+        password: 'pw2',
+      });
+      const token2 = (login2 as { accessToken: string }).accessToken;
+
+      // Non-owner should NOT see the resource (policy hides resource) → expect 404
+      await request(app.getHttpServer() as Server)
+        .get(`/projects/${project.id}`)
+        .set('Authorization', `Bearer ${token2}`)
+        .expect(404);
+    });
     it('should allow admin to access projects', async () => {
       await request(app.getHttpServer() as Server)
         .get('/projects')
@@ -410,14 +458,14 @@ describe('RBAC E2E Tests', () => {
   describe('Upload Module RBAC', () => {
     it('should allow admin to access upload endpoints', async () => {
       await request(app.getHttpServer() as Server)
-        .get('/upload/progress/test-id')
+        .get('/upload/progress/123e4567-e89b-12d3-a456-426614174000')
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(404); // 404 because document doesn't exist, but access is allowed
     });
 
     it('should allow regular user to access upload endpoints', async () => {
       await request(app.getHttpServer() as Server)
-        .get('/upload/progress/test-id')
+        .get('/upload/progress/123e4567-e89b-12d3-a456-426614174000')
         .set('Authorization', `Bearer ${userToken}`)
         .expect(404); // 404 because document doesn't exist, but access is allowed
     });
@@ -450,6 +498,91 @@ describe('RBAC E2E Tests', () => {
         .get('/processing/supported-types')
         .set('Authorization', `Bearer ${guestToken}`)
         .expect(403);
+    });
+  });
+
+  describe('Tenant isolation', () => {
+    it('should isolate resources by tenant via Prisma middleware and JWT tenantId', async () => {
+      const passwordHash = await bcrypt.hash('tenant-pass', 12);
+
+      // Create tenants using raw SQL as PrismaService may not expose Tenant in test typings
+      const taRows = await prisma.$queryRaw<
+        Array<{ id: string }>
+      >`INSERT INTO tenants (name) VALUES (${`TenantA-${Date.now()}`}) RETURNING id`;
+      const tbRows = await prisma.$queryRaw<
+        Array<{ id: string }>
+      >`INSERT INTO tenants (name) VALUES (${`TenantB-${Date.now()}`}) RETURNING id`;
+      const tenantAId = taRows[0]?.id;
+      const tenantBId = tbRows[0]?.id;
+
+      const taUser = await prisma.user.create({
+        data: {
+          email: `ta-${Date.now()}@example.com`,
+          name: 'TA User',
+          passwordHash,
+          role: Role.USER,
+          isActive: true,
+          preferences: {},
+          // set via raw since Prisma type may not expose
+        },
+      });
+      await prisma.$executeRaw`UPDATE users SET tenant_id = ${tenantAId} WHERE id = ${taUser.id}`;
+      const tbUser = await prisma.user.create({
+        data: {
+          email: `tb-${Date.now()}@example.com`,
+          name: 'TB User',
+          passwordHash,
+          role: Role.USER,
+          isActive: true,
+          preferences: {},
+          // set via raw since Prisma type may not expose
+        },
+      });
+      await prisma.$executeRaw`UPDATE users SET tenant_id = ${tenantBId} WHERE id = ${tbUser.id}`;
+
+      const taLogin = await authService.login({
+        email: taUser.email,
+        password: 'tenant-pass',
+      });
+      const tbLogin = await authService.login({
+        email: tbUser.email,
+        password: 'tenant-pass',
+      });
+      const taToken = (taLogin as { accessToken: string }).accessToken;
+      const tbToken = (tbLogin as { accessToken: string }).accessToken;
+
+      const taProject = await prisma.project.create({
+        data: {
+          userId: taUser.id,
+          name: 'TA Project',
+          status: 'active',
+          documentCount: 0,
+          totalSizeBytes: BigInt(0),
+        },
+      });
+      await prisma.$executeRaw`UPDATE projects SET tenant_id = ${tenantAId} WHERE id = ${taProject.id}`;
+
+      // Cross-tenant should not see the project
+      await request(app.getHttpServer() as Server)
+        .get(`/projects/${taProject.id}`)
+        .set('Authorization', `Bearer ${tbToken}`)
+        .expect(404);
+
+      // Same-tenant owner can see the project
+      await request(app.getHttpServer() as Server)
+        .get(`/projects/${taProject.id}`)
+        .set('Authorization', `Bearer ${taToken}`)
+        .expect(200);
+
+      // cleanup
+      await prisma.session.deleteMany({
+        where: { userId: { in: [taUser.id, tbUser.id] } },
+      });
+      await prisma.project.delete({ where: { id: taProject.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [taUser.id, tbUser.id] } },
+      });
+      await prisma.$executeRaw`DELETE FROM tenants WHERE id IN (${tenantAId}, ${tenantBId})`;
     });
   });
 
@@ -524,9 +657,26 @@ describe('RBAC E2E Tests', () => {
         .expect(401);
     });
 
-    it('should reject expired tokens', async () => {
-      // This would require creating an expired token, which is complex in a test environment
-      // In a real scenario, you might mock the JWT service or use a very short expiry
+    it('should reject expired tokens and set WWW-Authenticate header', async () => {
+      // Create a very short-lived token (1s), then wait so it expires
+      const testingModule: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      }).compile();
+      const { JwtService } = await import('@nestjs/jwt');
+      const jwtService = testingModule.get(JwtService);
+      const expired = await jwtService.signAsync(
+        { sub: regularUser.id, email: regularUser.email, role: Role.USER },
+        { secret: process.env.JWT_SECRET || 'secret', expiresIn: '1s' },
+      );
+      await new Promise((r) => setTimeout(r, 2000));
+
+      const res = await request(app.getHttpServer() as Server)
+        .get('/admin/users')
+        .set('Authorization', `Bearer ${expired}`)
+        .expect(401);
+
+      expect(res.headers['www-authenticate']).toMatch(/Bearer/i);
+      expect(res.headers['content-type']).toMatch(/application\/json/i);
     });
 
     it('should reject malformed authorization headers', async () => {

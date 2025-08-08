@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import typescript from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 import prettier from 'eslint-config-prettier';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
@@ -51,6 +52,21 @@ export default [
           format: ['PascalCase'],
         },
       ],
+    },
+  },
+  // Tests: enable Jest globals and relax some TS-only rules for JS test files
+  {
+    files: ['**/*.spec.ts', '**/*.test.ts', 'apps/backend/test/**/*.{ts,js}'],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
+    },
+  },
+  {
+    files: ['apps/backend/test/**/*.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
   prettier,

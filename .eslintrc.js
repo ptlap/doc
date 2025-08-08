@@ -11,6 +11,17 @@ module.exports = {
     node: true,
     es2022: true,
   },
+  overrides: [
+    {
+      files: ['**/*.spec.ts', '**/*.test.ts', 'apps/backend/test/**/*.{ts,js}'],
+      env: {
+        jest: true,
+      },
+      rules: {
+        '@typescript-eslint/no-require-imports': 'off',
+      },
+    },
+  ],
   globals: {
     setTimeout: 'readonly',
     clearTimeout: 'readonly',
