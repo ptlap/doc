@@ -32,6 +32,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { currentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { Policy } from '../../common/decorators/policy.decorator';
 import type { User } from '@prisma/client';
 
 @ApiTags('Upload')
@@ -45,6 +46,7 @@ export class UploadController {
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('file'))
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:write' }] })
   @ApiOperation({ summary: 'Upload a document for processing' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -124,6 +126,7 @@ export class UploadController {
 
   @Get('progress/:documentId')
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read' }] })
   @ApiOperation({ summary: 'Get upload/processing progress for a document' })
   @ApiResponse({
     status: 200,
@@ -142,6 +145,7 @@ export class UploadController {
 
   @Get('file/:documentId')
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read' }] })
   @ApiOperation({ summary: 'Download original document file' })
   @ApiResponse({
     status: 200,
@@ -172,6 +176,7 @@ export class UploadController {
 
   @Get('preview/:documentId')
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read' }] })
   @ApiOperation({ summary: 'Get document preview URL' })
   @ApiResponse({
     status: 200,
@@ -195,6 +200,7 @@ export class UploadController {
   @Post('validate')
   @UseInterceptors(FileInterceptor('file'))
   @Roles(Role.USER, Role.ADMIN)
+  @Policy({ anyOf: [{ perm: 'projects:read' }] })
   @ApiOperation({ summary: 'Validate file before upload' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

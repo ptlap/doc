@@ -172,6 +172,17 @@ export class UploadService {
   }
 
   async getUploadProgress(documentId: string): Promise<UploadProgressDto> {
+    // Type guard: ensure UUID format to avoid Prisma P2023 (invalid UUID) and return 404 for invalid ids
+    const isUuid = (value: unknown): value is string =>
+      typeof value === 'string' &&
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
+        value,
+      );
+
+    if (!isUuid(documentId)) {
+      throw new NotFoundException('Document not found');
+    }
+
     const document = await this.prisma.document.findUnique({
       where: { id: documentId },
       select: {
