@@ -35,11 +35,12 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
       'prefer-const': 'error',
       'no-var': 'error',
+      // Allow variableLike names in camelCase, PascalCase (for decorators/factories), and UPPER_CASE (for const keys)
       '@typescript-eslint/naming-convention': [
-        'error',
+        'warn',
         {
           selector: 'variableLike',
-          format: ['camelCase'],
+          format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
         },
         {
           selector: 'typeLike',

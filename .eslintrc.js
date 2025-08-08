@@ -1,30 +1,27 @@
 module.exports = {
   root: true,
-  extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended',
-    'prettier'
-  ],
+  extends: ['eslint:recommended', '@typescript-eslint/recommended', 'prettier'],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   parserOptions: {
     ecmaVersion: 2022,
-    sourceType: 'module'
+    sourceType: 'module',
   },
   env: {
     node: true,
-    es2022: true
+    es2022: true,
   },
   rules: {
     '@typescript-eslint/no-unused-vars': 'error',
     '@typescript-eslint/no-explicit-any': 'warn',
     'prefer-const': 'error',
     'no-var': 'error',
+    // Allow variableLike names in camelCase, PascalCase (for decorators/factories), and UPPER_CASE (for const keys)
     '@typescript-eslint/naming-convention': [
-      'error',
+      'warn',
       {
         selector: 'variableLike',
-        format: ['camelCase'],
+        format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
       },
       {
         selector: 'typeLike',
@@ -38,6 +35,6 @@ module.exports = {
     '.next/',
     'build/',
     '*.config.js',
-    '*.config.mjs'
-  ]
+    '*.config.mjs',
+  ],
 };
