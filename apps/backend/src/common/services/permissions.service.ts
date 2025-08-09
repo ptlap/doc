@@ -33,8 +33,7 @@ export class PermissionsService implements OnModuleDestroy {
       ),
     );
     const url: unknown = this.configService.get('REDIS_URL');
-    this.redisUrl =
-      typeof url === 'string' && url.length > 0 ? (url as string) : undefined;
+    this.redisUrl = typeof url === 'string' && url.length > 0 ? url : undefined;
   }
 
   private ensureRedisInitialized(): void {

@@ -15,7 +15,7 @@ export class TokenBlocklistService implements OnModuleDestroy {
     const urlUnknown: unknown = this.configService.get('REDIS_URL');
     this.redisUrl =
       typeof urlUnknown === 'string' && urlUnknown.length > 0
-        ? (urlUnknown as string)
+        ? urlUnknown
         : undefined;
     if (!this.redisUrl) {
       this.logger.warn(
