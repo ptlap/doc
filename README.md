@@ -63,6 +63,7 @@ pnpm dev
 ```
 
 🎉 **Ứng dụng sẽ chạy tại:**
+
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:3001
 - API Docs: http://localhost:3001/api/docs
@@ -76,7 +77,7 @@ graph TB
         B --> C[Chat Interface]
         C --> D[Document Viewer]
     end
-    
+
     subgraph "Backend (NestJS)"
         E[Upload API] --> F[File Processor]
         F --> G[OCR Engine]
@@ -84,13 +85,13 @@ graph TB
         H --> I[RAG Engine]
         I --> J[LLM API]
     end
-    
+
     subgraph "Storage"
         K[(PostgreSQL)]
         L[(Redis)]
         M[File Storage]
     end
-    
+
     A --> E
     C --> I
     F --> M
@@ -101,19 +102,19 @@ graph TB
 
 ### Tech Stack
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend** | Next.js 14, React 18, TypeScript | User interface |
-| **UI Components** | Tailwind CSS, shadcn/ui, Radix UI | Design system |
-| **State Management** | Zustand | Client state |
-| **Backend** | NestJS, TypeScript | API server |
-| **Database** | PostgreSQL, Prisma ORM | Data persistence |
-| **Cache** | Redis | Session & cache |
-| **OCR** | Tesseract.js, Sharp | Text extraction |
-| **AI/ML** | @xenova/transformers, FAISS | Embeddings & search |
-| **LLM** | OpenAI GPT-4, Google Gemini | Q&A generation |
-| **File Processing** | Sharp, pdf-poppler, LibreOffice | Document processing |
-| **DevOps** | Docker, GitHub Actions, Vercel | Deployment |
+| Layer                | Technology                        | Purpose             |
+| -------------------- | --------------------------------- | ------------------- |
+| **Frontend**         | Next.js 14, React 18, TypeScript  | User interface      |
+| **UI Components**    | Tailwind CSS, shadcn/ui, Radix UI | Design system       |
+| **State Management** | Zustand                           | Client state        |
+| **Backend**          | NestJS, TypeScript                | API server          |
+| **Database**         | PostgreSQL, Prisma ORM            | Data persistence    |
+| **Cache**            | Redis                             | Session & cache     |
+| **OCR**              | Tesseract.js, Sharp               | Text extraction     |
+| **AI/ML**            | @xenova/transformers, FAISS       | Embeddings & search |
+| **LLM**              | OpenAI GPT-4, Google Gemini       | Q&A generation      |
+| **File Processing**  | Sharp, pdf-poppler, LibreOffice   | Document processing |
+| **DevOps**           | Docker, GitHub Actions, Vercel    | Deployment          |
 
 ## 📁 Project Structure
 
@@ -209,6 +210,7 @@ pnpm build:backend        # Build backend
 ### Environment Variables
 
 #### Frontend (.env.local)
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_WS_URL=ws://localhost:3001
@@ -219,6 +221,7 @@ NEXTAUTH_SECRET=your-secret-key
 ```
 
 #### Backend (.env)
+
 ```env
 NODE_ENV=development
 PORT=3001
@@ -233,13 +236,13 @@ GOOGLE_AI_API_KEY=your-google-ai-key
 
 ### Core Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/upload` | Upload document |
-| `GET` | `/api/upload/:sessionId/status` | Check processing status |
-| `POST` | `/api/chat` | Send chat message |
-| `GET` | `/api/documents` | List documents |
-| `GET` | `/api/documents/:id` | Get document details |
+| Method | Endpoint                        | Description             |
+| ------ | ------------------------------- | ----------------------- |
+| `POST` | `/api/upload`                   | Upload document         |
+| `GET`  | `/api/upload/:sessionId/status` | Check processing status |
+| `POST` | `/api/chat`                     | Send chat message       |
+| `GET`  | `/api/documents`                | List documents          |
+| `GET`  | `/api/documents/:id`            | Get document details    |
 
 ### Example Usage
 
@@ -251,9 +254,9 @@ formData.append('file', file);
 const response = await fetch('/api/upload', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   },
-  body: formData
+  body: formData,
 });
 
 const { sessionId } = await response.json();
@@ -263,12 +266,12 @@ const chatResponse = await fetch('/api/chat', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   },
   body: JSON.stringify({
     sessionId,
-    message: 'What is the main topic of this document?'
-  })
+    message: 'What is the main topic of this document?',
+  }),
 });
 
 const { answer, citations } = await chatResponse.json();
@@ -314,12 +317,12 @@ describe('FileUpload', () => {
   it('should upload file successfully', async () => {
     const onSuccess = jest.fn();
     const file = new File(['content'], 'test.pdf', { type: 'application/pdf' });
-    
+
     render(<FileUpload onSuccess={onSuccess} />);
-    
+
     const input = screen.getByLabelText(/upload file/i);
     await userEvent.upload(input, file);
-    
+
     expect(onSuccess).toHaveBeenCalledWith(
       expect.objectContaining({ fileName: 'test.pdf' })
     );
@@ -386,13 +389,13 @@ pnpm build
 
 ### Benchmarks
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| Document Upload | < 5s | 3.2s |
-| OCR Processing | < 30s (10 pages) | 24s |
-| Chat Response | < 3s | 2.1s |
-| Page Load | < 2s | 1.4s |
-| Lighthouse Score | > 90 | 94 |
+| Metric           | Target           | Current |
+| ---------------- | ---------------- | ------- |
+| Document Upload  | < 5s             | 3.2s    |
+| OCR Processing   | < 30s (10 pages) | 24s     |
+| Chat Response    | < 3s             | 2.1s    |
+| Page Load        | < 2s             | 1.4s    |
+| Lighthouse Score | > 90             | 94      |
 
 ### Optimization
 
@@ -441,24 +444,28 @@ Chúng tôi hoan nghênh mọi đóng góp! Vui lòng đọc:
 ## 📋 Roadmap
 
 ### Phase 1: MVP ✅
+
 - [x] Document upload and processing
 - [x] OCR text extraction
 - [x] Basic Q&A with citations
 - [x] Real-time progress tracking
 
 ### Phase 2: Enhanced Features 🚧
+
 - [ ] Multi-document workspace
 - [ ] User authentication and projects
 - [ ] Advanced chat interface
 - [ ] Document collaboration
 
 ### Phase 3: Advanced Intelligence 📋
+
 - [ ] Document comparison and analysis
 - [ ] Structured data extraction
 - [ ] Auto-summarization
 - [ ] Mind-map generation
 
 ### Phase 4: Enterprise Features 📋
+
 - [ ] Real-time collaboration
 - [ ] API-first design
 - [ ] Cloud integrations

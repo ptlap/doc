@@ -5,9 +5,11 @@
 <!-- Provide a brief description of the changes in this PR -->
 
 ### What does this PR do?
+
 <!-- Describe what this PR accomplishes -->
 
 ### Why is this change needed?
+
 <!-- Explain the motivation for this change -->
 
 ## 🔄 Type of Change
@@ -30,36 +32,42 @@
 <!-- Describe the tests you ran and how to reproduce them -->
 
 ### Test Coverage
+
 - [ ] Unit tests added/updated
 - [ ] Integration tests added/updated
 - [ ] E2E tests added/updated (if applicable)
 - [ ] Manual testing completed
 
 ### Test Results
+
 - [ ] All existing tests pass
 - [ ] New tests pass
 - [ ] No regression in functionality
 
 ### How to Test
+
 <!-- Provide step-by-step instructions for testing this change -->
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## 📸 Screenshots/Videos
 
 <!-- Add screenshots or videos for UI changes -->
 
 ### Before
+
 <!-- Screenshot/description of the current state -->
 
 ### After
+
 <!-- Screenshot/description after your changes -->
 
 ## 📝 Checklist
 
 ### Code Quality
+
 - [ ] Code follows the [Style Guide](../STYLE_GUIDE.md)
 - [ ] Self-review completed
 - [ ] Code is properly commented
@@ -67,18 +75,21 @@
 - [ ] No hardcoded values (use constants/config)
 
 ### Documentation
+
 - [ ] Documentation updated (if needed)
 - [ ] API documentation updated (if API changes)
 - [ ] README updated (if needed)
 - [ ] CHANGELOG updated (for significant changes)
 
 ### Security & Performance
+
 - [ ] No security vulnerabilities introduced
 - [ ] Performance impact considered
 - [ ] Error handling implemented
 - [ ] Input validation added (if applicable)
 
 ### Dependencies
+
 - [ ] No unnecessary dependencies added
 - [ ] Dependencies are up-to-date
 - [ ] License compatibility checked
@@ -96,17 +107,20 @@ Fixes #<!-- issue number -->
 <!-- Any special deployment considerations -->
 
 ### Database Changes
+
 - [ ] No database changes
 - [ ] Migration scripts included
 - [ ] Backward compatible changes
 - [ ] Data migration tested
 
 ### Environment Variables
+
 - [ ] No new environment variables
 - [ ] New environment variables documented
 - [ ] Environment variables added to deployment configs
 
 ### Breaking Changes
+
 <!-- If this is a breaking change, describe what breaks and how to migrate -->
 
 ## 📊 Performance Impact
@@ -114,10 +128,12 @@ Fixes #<!-- issue number -->
 <!-- Describe any performance implications -->
 
 ### Bundle Size
+
 - [ ] No significant bundle size increase
 - [ ] Bundle size impact analyzed and acceptable
 
 ### Runtime Performance
+
 - [ ] No performance regression
 - [ ] Performance improvements measured
 

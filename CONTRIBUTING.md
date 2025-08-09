@@ -18,6 +18,7 @@ Cảm ơn bạn đã quan tâm đến việc đóng góp cho dự án AI Documen
 Dự án này tuân thủ [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/). Bằng việc tham gia, bạn đồng ý tuân thủ các quy tắc này.
 
 ### Nguyên tắc cơ bản:
+
 - **Tôn trọng**: Đối xử tôn trọng với mọi người
 - **Bao dung**: Chấp nhận quan điểm và kinh nghiệm khác nhau
 - **Hợp tác**: Làm việc cùng nhau để đạt mục tiêu chung
@@ -46,6 +47,7 @@ docker --version
 ### Setup Development Environment
 
 1. **Fork và clone repository**
+
 ```bash
 # Fork repo trên GitHub, sau đó clone
 git clone https://github.com/YOUR_USERNAME/ai-document-assistant.git
@@ -56,6 +58,7 @@ git remote add upstream https://github.com/ORIGINAL_OWNER/ai-document-assistant.
 ```
 
 2. **Install dependencies**
+
 ```bash
 # Install all dependencies
 pnpm install
@@ -65,6 +68,7 @@ pnpm prepare
 ```
 
 3. **Environment setup**
+
 ```bash
 # Copy environment files
 cp apps/frontend/.env.local.example apps/frontend/.env.local
@@ -75,6 +79,7 @@ cp apps/backend/.env.example apps/backend/.env
 ```
 
 4. **Database setup**
+
 ```bash
 # Start database (Docker)
 cd tools/docker
@@ -88,6 +93,7 @@ npx prisma db seed
 ```
 
 5. **Start development servers**
+
 ```bash
 # Root directory
 pnpm dev
@@ -135,6 +141,7 @@ main                    # Production-ready code
 ### Working on Features
 
 1. **Create feature branch**
+
 ```bash
 # Sync with upstream
 git checkout develop
@@ -148,6 +155,7 @@ git checkout -b bugfix/issue-description
 ```
 
 2. **Development cycle**
+
 ```bash
 # Make changes
 # Write tests
@@ -167,6 +175,7 @@ git push origin feature/your-feature-name
 ```
 
 3. **Keep branch updated**
+
 ```bash
 # Regularly sync with develop
 git checkout develop
@@ -193,6 +202,7 @@ Chúng tôi sử dụng [Conventional Commits](https://www.conventionalcommits.o
 ```
 
 #### Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -204,6 +214,7 @@ Chúng tôi sử dụng [Conventional Commits](https://www.conventionalcommits.o
 - `ci`: CI/CD changes
 
 #### Examples:
+
 ```bash
 # Good commits
 feat(upload): add file type validation
@@ -220,6 +231,7 @@ WIP: working on feature         # Not descriptive
 ```
 
 #### Scope Guidelines:
+
 - `frontend`: Frontend-specific changes
 - `backend`: Backend-specific changes
 - `api`: API-related changes
@@ -290,11 +302,11 @@ describe('FileUpload Component', () => {
       // Arrange
       const mockFile = new File(['content'], 'test.pdf');
       const onSuccess = jest.fn();
-      
+
       // Act
       render(<FileUpload onSuccess={onSuccess} />);
       await userEvent.upload(screen.getByLabelText(/upload/i), mockFile);
-      
+
       // Assert
       expect(screen.getByText(/processing/i)).toBeInTheDocument();
       await waitFor(() => {
@@ -352,6 +364,7 @@ pnpm test:e2e
    - [ ] Performance considerations addressed
 
 2. **Local Testing**
+
 ```bash
 # Run full test suite
 pnpm test
@@ -369,6 +382,7 @@ pnpm test:e2e
 ### Creating Pull Request
 
 1. **PR Title**: Follow conventional commit format
+
 ```
 feat(upload): add drag-and-drop file upload
 fix(chat): resolve message ordering issue
@@ -376,26 +390,32 @@ docs(api): update authentication documentation
 ```
 
 2. **PR Description Template**:
+
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 
 ## Testing
+
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 - [ ] E2E tests pass (if applicable)
 - [ ] Manual testing completed
 
 ## Screenshots (if applicable)
+
 Add screenshots for UI changes
 
 ## Checklist
+
 - [ ] Code follows style guidelines
 - [ ] Self-review completed
 - [ ] Tests added/updated
@@ -403,6 +423,7 @@ Add screenshots for UI changes
 - [ ] No breaking changes (or clearly documented)
 
 ## Related Issues
+
 Closes #123
 Related to #456
 ```
@@ -443,6 +464,7 @@ Use the bug report template:
 Clear description of the bug
 
 **Steps to Reproduce**
+
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
@@ -458,6 +480,7 @@ What actually happened
 If applicable, add screenshots
 
 **Environment**
+
 - OS: [e.g. macOS, Windows, Linux]
 - Browser: [e.g. Chrome, Firefox, Safari]
 - Version: [e.g. 1.0.0]
@@ -510,6 +533,7 @@ Chúng tôi sử dụng [Semantic Versioning](https://semver.org/):
 ### Release Workflow
 
 1. **Prepare Release**
+
 ```bash
 # Create release branch
 git checkout develop
@@ -530,6 +554,7 @@ git checkout -b release/v1.2.0
    - [ ] Deployment scripts tested
 
 3. **Create Release**
+
 ```bash
 # Merge to main
 git checkout main
@@ -603,11 +628,13 @@ pnpm reset                # Reset node_modules
 ## 📚 Resources
 
 ### Documentation
+
 - [Style Guide](./STYLE_GUIDE.md) - Coding standards and conventions
 - [API Documentation](./docs/api/) - API endpoints and schemas
 - [Architecture Guide](./docs/architecture/) - System design and architecture
 
 ### External Resources
+
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 - [React Documentation](https://react.dev/)
 - [Next.js Documentation](https://nextjs.org/docs)
@@ -615,6 +642,7 @@ pnpm reset                # Reset node_modules
 - [Prisma Documentation](https://www.prisma.io/docs)
 
 ### Community
+
 - [GitHub Discussions](https://github.com/OWNER/REPO/discussions) - General discussions
 - [Issues](https://github.com/OWNER/REPO/issues) - Bug reports and feature requests
 
@@ -635,6 +663,7 @@ pnpm reset                # Reset node_modules
 ### Providing Context
 
 When asking for help, include:
+
 - What you're trying to achieve
 - What you've tried
 - Error messages (full stack trace)

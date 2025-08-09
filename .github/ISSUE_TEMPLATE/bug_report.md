@@ -36,12 +36,14 @@ assignees: ''
 <!-- Please complete the following information -->
 
 ### Browser/Client
+
 - **OS**: [e.g. macOS 14.0, Windows 11, Ubuntu 22.04]
 - **Browser**: [e.g. Chrome 119, Firefox 118, Safari 17]
 - **Version**: [e.g. 1.0.0]
 - **Device**: [e.g. Desktop, Mobile, Tablet]
 
 ### Server (if applicable)
+
 - **Node.js Version**: [e.g. 18.17.0]
 - **Database**: [e.g. PostgreSQL 15.4]
 - **Deployment**: [e.g. Local, Vercel, Docker]
@@ -51,6 +53,7 @@ assignees: ''
 <!-- Add any other context about the problem here -->
 
 ### Error Messages
+
 <!-- Include any error messages, stack traces, or console logs -->
 
 ```
@@ -58,6 +61,7 @@ Paste error messages here
 ```
 
 ### Console Logs
+
 <!-- Include relevant browser console logs -->
 
 ```
@@ -65,6 +69,7 @@ Paste console logs here
 ```
 
 ### Network Requests
+
 <!-- Include relevant network request/response information -->
 
 ```
