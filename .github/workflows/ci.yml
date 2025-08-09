@@ -30,7 +30,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
       - name: Enable Corepack
         run: corepack enable
       - name: Activate pnpm via Corepack
@@ -39,6 +38,20 @@ jobs:
         run: npm install -g pnpm@${{ env.PNPM_VERSION }}
       - name: Show pnpm version
         run: pnpm -v
+      - name: Print PATH
+        run: echo $PATH
+      - name: Which pnpm
+        run: which pnpm || echo "pnpm not found"
+      - name: Get pnpm store dir
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Type check
@@ -82,7 +95,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
       - name: Enable Corepack
         run: corepack enable
       - name: Activate pnpm via Corepack
@@ -91,6 +103,20 @@ jobs:
         run: npm install -g pnpm@${{ env.PNPM_VERSION }}
       - name: Show pnpm version
         run: pnpm -v
+      - name: Print PATH
+        run: echo $PATH
+      - name: Which pnpm
+        run: which pnpm || echo "pnpm not found"
+      - name: Get pnpm store dir
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Prisma generate + db push
@@ -122,7 +148,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
       - name: Enable Corepack
         run: corepack enable
       - name: Activate pnpm via Corepack
@@ -131,6 +156,20 @@ jobs:
         run: npm install -g pnpm@${{ env.PNPM_VERSION }}
       - name: Show pnpm version
         run: pnpm -v
+      - name: Print PATH
+        run: echo $PATH
+      - name: Which pnpm
+        run: which pnpm || echo "pnpm not found"
+      - name: Get pnpm store dir
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
