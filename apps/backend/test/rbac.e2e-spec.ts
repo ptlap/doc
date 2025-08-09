@@ -269,6 +269,14 @@ describe('RBAC E2E Tests', () => {
           .set('Authorization', `Bearer ${adminToken}`)
           .send({ role: Role.USER })
           .expect(200);
+
+        // Role change invalidates existing tokens (tokenVersion increment).
+        // Refresh user token for subsequent tests to avoid false 401.
+        const refreshed = await authService.login({
+          email: regularUser.email,
+          password: 'testpassword123',
+        });
+        userToken = (refreshed as { accessToken: string }).accessToken;
       });
 
       it('should deny regular user from updating user roles', async () => {
@@ -319,6 +327,13 @@ describe('RBAC E2E Tests', () => {
           .set('Authorization', `Bearer ${adminToken}`)
           .send({ testConfig: 'value' })
           .expect(200);
+
+        // Admin role updates may bump tokenVersion; refresh admin token to avoid 401 later.
+        const refreshed = await authService.login({
+          email: adminUser.email,
+          password: 'testpassword123',
+        });
+        adminToken = (refreshed as { accessToken: string }).accessToken;
       });
 
       it('should deny regular user access to system config', async () => {
@@ -526,7 +541,7 @@ describe('RBAC E2E Tests', () => {
           // set via raw since Prisma type may not expose
         },
       });
-      await prisma.$executeRaw`UPDATE users SET tenant_id = ${tenantAId} WHERE id = ${taUser.id}`;
+      await prisma.$executeRaw`UPDATE users SET tenant_id = ${tenantAId}::uuid WHERE id = ${taUser.id}::uuid`;
       const tbUser = await prisma.user.create({
         data: {
           email: `tb-${Date.now()}@example.com`,
@@ -538,7 +553,7 @@ describe('RBAC E2E Tests', () => {
           // set via raw since Prisma type may not expose
         },
       });
-      await prisma.$executeRaw`UPDATE users SET tenant_id = ${tenantBId} WHERE id = ${tbUser.id}`;
+      await prisma.$executeRaw`UPDATE users SET tenant_id = ${tenantBId}::uuid WHERE id = ${tbUser.id}::uuid`;
 
       const taLogin = await authService.login({
         email: taUser.email,
@@ -560,7 +575,7 @@ describe('RBAC E2E Tests', () => {
           totalSizeBytes: BigInt(0),
         },
       });
-      await prisma.$executeRaw`UPDATE projects SET tenant_id = ${tenantAId} WHERE id = ${taProject.id}`;
+      await prisma.$executeRaw`UPDATE projects SET tenant_id = ${tenantAId}::uuid WHERE id = ${taProject.id}::uuid`;
 
       // Cross-tenant should not see the project
       await request(app.getHttpServer() as Server)
@@ -582,7 +597,7 @@ describe('RBAC E2E Tests', () => {
       await prisma.user.deleteMany({
         where: { id: { in: [taUser.id, tbUser.id] } },
       });
-      await prisma.$executeRaw`DELETE FROM tenants WHERE id IN (${tenantAId}, ${tenantBId})`;
+      await prisma.$executeRaw`DELETE FROM tenants WHERE id IN (${tenantAId}::uuid, ${tenantBId}::uuid)`;
     });
   });
 
