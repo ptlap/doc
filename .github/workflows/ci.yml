@@ -35,6 +35,8 @@ jobs:
         run: corepack enable
       - name: Activate pnpm via Corepack
         run: corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+      - name: Install pnpm (fallback)
+        run: npm install -g pnpm@${{ env.PNPM_VERSION }}
       - name: Show pnpm version
         run: pnpm -v
       - name: Install dependencies
@@ -85,6 +87,8 @@ jobs:
         run: corepack enable
       - name: Activate pnpm via Corepack
         run: corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+      - name: Install pnpm (fallback)
+        run: npm install -g pnpm@${{ env.PNPM_VERSION }}
       - name: Show pnpm version
         run: pnpm -v
       - name: Install dependencies
@@ -123,6 +127,8 @@ jobs:
         run: corepack enable
       - name: Activate pnpm via Corepack
         run: corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+      - name: Install pnpm (fallback)
+        run: npm install -g pnpm@${{ env.PNPM_VERSION }}
       - name: Show pnpm version
         run: pnpm -v
       - name: Install dependencies
