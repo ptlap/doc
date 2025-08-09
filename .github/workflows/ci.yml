@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   PNPM_VERSION: '10.12.1'
 
 jobs:
@@ -36,16 +36,6 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
-      - name: Get pnpm store dir
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Type check
@@ -95,16 +85,6 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
-      - name: Get pnpm store dir
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Prisma generate + db push
@@ -142,16 +122,6 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
-      - name: Get pnpm store dir
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
@@ -199,6 +169,14 @@ jobs:
           file: tools/docker/Dockerfile.backend
           push: true
           platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.TAG1 }}
           tags: |
             ghcr.io/${{ steps.meta.outputs.OWNER }}/ai-doc-assistant-backend:${{ steps.meta.outputs.TAG1 }}
             ghcr.io/${{ steps.meta.outputs.OWNER }}/ai-doc-assistant-backend:${{ steps.meta.outputs.TAG2 }}
@@ -209,6 +187,14 @@ jobs:
           file: tools/docker/Dockerfile.frontend
           push: true
           platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.TAG1 }}
           tags: |
             ghcr.io/${{ steps.meta.outputs.OWNER }}/ai-doc-assistant-frontend:${{ steps.meta.outputs.TAG1 }}
             ghcr.io/${{ steps.meta.outputs.OWNER }}/ai-doc-assistant-frontend:${{ steps.meta.outputs.TAG2 }}
