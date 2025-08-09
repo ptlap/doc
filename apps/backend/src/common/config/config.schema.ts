@@ -19,6 +19,9 @@ export const configValidationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
 
+  // Service-to-service JWT (optional; defaults to JWT_SECRET when absent)
+  JWT_SERVICE_SECRET: Joi.string().optional(),
+
   // Redis (optional)
   REDIS_URL: Joi.string().uri().optional(),
 
