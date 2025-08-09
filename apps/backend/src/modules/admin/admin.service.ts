@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/services/prisma.service';
 import { Role } from '../../common/enums/role.enum';
+import type { UserRole as PrismaUserRole } from '@prisma/client';
 
 interface GetUsersOptions {
   page: number;
@@ -37,6 +38,20 @@ export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  private toPrismaUserRole(role: Role): PrismaUserRole {
+    switch (role) {
+      case Role.ADMIN:
+        return 'admin';
+      case Role.USER:
+        return 'user';
+      case Role.GUEST:
+        return 'guest';
+      default:
+        // Exhaustive guard
+        return 'user';
+    }
+  }
 
   async getDashboard() {
     const [
@@ -233,6 +248,36 @@ export class AdminService {
       `Admin ${adminId} changed user ${user.email} role from ${user.role} to ${newRole}`,
     );
 
+    // Record role grant
+    try {
+      await this.prisma.roleGrant.create({
+        data: {
+          userId: userId,
+          role: this.toPrismaUserRole(newRole),
+          grantedBy: adminId,
+          reason: 'manual_update',
+        },
+      });
+    } catch {
+      // ignore audit failure
+    }
+
+    // Audit log
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: adminId,
+          action: 'update_user_role',
+          resourceType: 'user',
+          resourceId: userId,
+          oldValues: { role: user.role },
+          newValues: { role: newRole },
+        },
+      });
+    } catch {
+      // ignore
+    }
+
     return updatedUser;
   }
 
@@ -267,6 +312,22 @@ export class AdminService {
       `Admin ${adminId} ${isActive ? 'activated' : 'deactivated'} user ${user.email}`,
     );
 
+    // Audit log
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: adminId,
+          action: 'update_user_status',
+          resourceType: 'user',
+          resourceId: userId,
+          oldValues: { isActive: user.isActive },
+          newValues: { isActive },
+        },
+      });
+    } catch {
+      // ignore
+    }
+
     return updatedUser;
   }
 
@@ -296,6 +357,22 @@ export class AdminService {
     });
 
     this.logger.log(`Admin ${adminId} deleted user ${user.email}`);
+
+    // Audit log
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: adminId,
+          action: 'delete_user',
+          resourceType: 'user',
+          resourceId: userId,
+          oldValues: { isActive: true },
+          newValues: { isActive: false },
+        },
+      });
+    } catch {
+      // ignore
+    }
   }
 
   async getAllProjects(options: GetProjectsOptions) {

@@ -105,7 +105,6 @@ export class ManagementController {
 
   @Get('monitoring/metrics')
   @Roles(Role.ADMIN, Role.USER) // Users can view basic metrics
-  @Policy({ anyOf: [{ perm: 'management:config:read' }] })
   @ApiOperation({ summary: 'Get system monitoring metrics' })
   @ApiQuery({ name: 'timeframe', required: false, type: String })
   @ApiResponse({

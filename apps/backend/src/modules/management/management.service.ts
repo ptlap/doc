@@ -273,52 +273,48 @@ export class ManagementService {
   async getAuditLogs(
     options: GetAuditLogsOptions,
   ): Promise<Record<string, unknown>> {
-    await new Promise((resolve) => setTimeout(resolve, 1)); // Simulate async work
     const { page, limit, action, userId } = options;
     const skip = (page - 1) * limit;
 
-    // Mock audit logs - in a real application, this would come from your audit system
-    const mockLogs = Array.from({ length: 100 }, (_, i) => ({
-      id: `audit-${i + 1}`,
-      timestamp: new Date(Date.now() - i * 60 * 60 * 1000).toISOString(),
-      userId: `user-${Math.floor(Math.random() * 10) + 1}`,
-      userEmail: `user${Math.floor(Math.random() * 10) + 1}@example.com`,
-      action: [
-        'login',
-        'logout',
-        'create_project',
-        'upload_document',
-        'delete_user',
-      ][Math.floor(Math.random() * 5)],
-      resource: 'user',
-      resourceId: `resource-${i + 1}`,
-      ipAddress: `192.168.1.${Math.floor(Math.random() * 255)}`,
-      userAgent: 'Mozilla/5.0 (compatible)',
-      success: Math.random() > 0.1,
-      metadata: {
-        details: `Action performed on resource ${i + 1}`,
-      },
-    }));
-
-    let filteredLogs = mockLogs;
-
-    if (action) {
-      filteredLogs = filteredLogs.filter((log) => log.action === action);
+    const where: Record<string, unknown> = {};
+    if (typeof action === 'string' && action.length > 0) {
+      where['action'] = action;
+    }
+    if (typeof userId === 'string' && userId.length > 0) {
+      where['userId'] = userId;
     }
 
-    if (userId) {
-      filteredLogs = filteredLogs.filter((log) => log.userId === userId);
-    }
-
-    const paginatedLogs = filteredLogs.slice(skip, skip + limit);
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          createdAt: true,
+          userId: true,
+          action: true,
+          resourceType: true,
+          resourceId: true,
+          oldValues: true,
+          newValues: true,
+          ipAddress: true,
+          userAgent: true,
+          tenantId: true,
+          // correlationId is not selected for brevity
+        },
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
 
     return {
-      logs: paginatedLogs,
+      logs,
       pagination: {
         page,
         limit,
-        total: filteredLogs.length,
-        totalPages: Math.ceil(filteredLogs.length / limit),
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
