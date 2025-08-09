@@ -89,6 +89,7 @@ model User {
   messages      Message[]
   sessions      Session[]
   auditLogs     AuditLog[]
+  roleGrants    RoleGrant[]
 
   @@map("users")
 }
@@ -229,7 +230,7 @@ model Message {
 model Session {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId         String    @map("user_id") @db.Uuid
-  sessionToken   String    @unique @map("session_token") @db.VarChar(255)
+  sessionToken   String    @unique @map("session_token") @db.Text
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
   expiresAt      DateTime  @map("expires_at") @db.Timestamptz
   lastAccessedAt DateTime  @default(now()) @map("last_accessed_at") @db.Timestamptz
@@ -254,9 +255,26 @@ model AuditLog {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   ipAddress    String?   @map("ip_address") @db.Inet
   userAgent    String?   @map("user_agent") @db.Text
+  tenantId     String?   @map("tenant_id") @db.Uuid
+  correlationId String?  @map("correlation_id") @db.VarChar(64)
 
   // Relationships
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+}
+
+model RoleGrant {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  role        UserRole
+  grantedBy   String   @map("granted_by") @db.Uuid
+  reason      String?  @db.Text
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("role_grants")
 }
