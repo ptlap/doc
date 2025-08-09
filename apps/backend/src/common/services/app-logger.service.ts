@@ -1,5 +1,6 @@
 import { Injectable, Logger, LoggerService } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { RequestContextService } from './request-context.service';
 
 export interface LogContext {
   userId?: string;
@@ -16,7 +17,10 @@ export class AppLoggerService implements LoggerService {
   private readonly logger = new Logger(AppLoggerService.name);
   private readonly logLevel: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly requestContext: RequestContextService,
+  ) {
     this.logLevel = this.configService.get<string>('logging.level', 'info');
   }
 
@@ -177,7 +181,12 @@ export class AppLoggerService implements LoggerService {
   private formatMessage(message: string, context?: LogContext): string {
     if (!context) return message;
 
-    const contextStr = Object.entries(context)
+    const enrich: LogContext = {
+      ...context,
+      requestId: context.requestId ?? this.requestContext.get('correlationId'),
+    };
+
+    const contextStr = Object.entries(enrich)
       .map(([key, value]) => `${key}=${value}`)
       .join(' ');
 

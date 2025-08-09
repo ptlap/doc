@@ -9,13 +9,17 @@ import { from } from 'rxjs';
 import { mergeMap, tap } from 'rxjs/operators';
 import type { Request } from 'express';
 import { PrismaService } from '../services/prisma.service';
+import { RequestContextService } from '../services/request-context.service';
 import { Role } from '../enums/role.enum';
 
 type RequestUser = { id: string; role: string; tenantId?: string };
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly requestContext: RequestContextService,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context
@@ -66,7 +70,7 @@ export class TenantInterceptor implements NestInterceptor {
     // Allow ADMIN to switch tenant via header if valid UUID and tenant exists
     if (this.isAdminRole(user?.role) && this.isUuid(requestedTenantId)) {
       const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
-        SELECT id FROM tenants WHERE id = ${requestedTenantId} LIMIT 1
+        SELECT id FROM tenants WHERE id = ${requestedTenantId}::uuid LIMIT 1
       `;
       const foundId: unknown =
         Array.isArray(rows) && rows.length > 0 ? rows[0]?.id : undefined;
@@ -96,5 +100,8 @@ export class TenantInterceptor implements NestInterceptor {
     }
 
     this.prisma.setTenantId(effectiveTenantId);
+    if (typeof effectiveTenantId === 'string') {
+      this.requestContext.set('tenantId', effectiveTenantId);
+    }
   }
 }

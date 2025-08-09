@@ -10,6 +10,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ManagementModule } from './modules/management/management.module';
 import { CommonModule } from './common/common.module';
+import { InternalModule } from './modules/internal/internal.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RbacExceptionFilter } from './common/filters/rbac-exception.filter';
 import { AuthExceptionFilter } from './common/filters/auth-exception.filter';
@@ -47,6 +48,7 @@ import storageConfig from './config/storage.config';
     UploadModule,
     AdminModule,
     ManagementModule,
+    InternalModule,
   ],
   controllers: [AppController],
   providers: [

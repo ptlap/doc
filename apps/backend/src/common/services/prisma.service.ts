@@ -52,6 +52,7 @@ export class PrismaService
         const whereCapableActions = new Set([
           'findMany',
           'findFirst',
+          'findUnique',
           'count',
           'aggregate',
           'updateMany',
@@ -85,9 +86,12 @@ export class PrismaService
             const currentWhere = isObject(argsObj.where)
               ? argsObj.where
               : undefined;
-            argsObj.where = currentWhere
-              ? { ...currentWhere, tenantId }
-              : { tenantId };
+            // Do not add tenantId filter for User model to avoid UUID/text errors on raw queries
+            if (model !== 'User') {
+              argsObj.where = currentWhere
+                ? { ...currentWhere, tenantId }
+                : { tenantId };
+            }
           }
         }
 

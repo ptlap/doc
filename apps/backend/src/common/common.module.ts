@@ -4,6 +4,7 @@ import { StorageService } from './services/storage.service';
 import { AppLoggerService } from './services/app-logger.service';
 import { PermissionsService } from './services/permissions.service';
 import { TokenBlocklistService } from './services/token-blocklist.service';
+import { RequestContextService } from './services/request-context.service';
 
 @Global()
 @Module({
@@ -13,6 +14,7 @@ import { TokenBlocklistService } from './services/token-blocklist.service';
     AppLoggerService,
     PermissionsService,
     TokenBlocklistService,
+    RequestContextService,
   ],
   exports: [
     PrismaService,
@@ -20,6 +22,7 @@ import { TokenBlocklistService } from './services/token-blocklist.service';
     AppLoggerService,
     PermissionsService,
     TokenBlocklistService,
+    RequestContextService,
   ],
 })
 export class CommonModule {}

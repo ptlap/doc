@@ -8,37 +8,42 @@ type BlockRecord = { expiresAtMs: number };
 export class TokenBlocklistService implements OnModuleDestroy {
   private readonly logger = new Logger(TokenBlocklistService.name);
   private readonly memoryBlocked = new Map<string, BlockRecord>();
-  private readonly redis?: RedisClient;
+  private redis?: RedisClient;
+  private readonly redisUrl?: string;
 
   constructor(private readonly configService: ConfigService) {
     const urlUnknown: unknown = this.configService.get('REDIS_URL');
-    const url =
+    this.redisUrl =
       typeof urlUnknown === 'string' && urlUnknown.length > 0
-        ? urlUnknown
+        ? (urlUnknown as string)
         : undefined;
-    if (url) {
-      try {
-        this.redis = new IORedis(url, {
-          maxRetriesPerRequest: 1,
-          lazyConnect: false,
-          enableAutoPipelining: true,
-        });
-        this.redis.on('error', (err: unknown) => {
-          this.logger.error(
-            `Redis error in blocklist: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        });
-        this.redis.on('ready', () => {
-          this.logger.log('Token blocklist is using Redis backend');
-        });
-      } catch {
-        this.logger.error(
-          'Failed to initialize Redis for token blocklist, falling back to in-memory',
-        );
-      }
-    } else {
+    if (!this.redisUrl) {
       this.logger.warn(
         'REDIS_URL not set; Token blocklist will use in-memory store',
+      );
+    }
+  }
+
+  private ensureRedisInitialized(): void {
+    if (!this.redisUrl) return;
+    if (this.isRedis(this.redis)) return;
+    try {
+      this.redis = new IORedis(this.redisUrl, {
+        maxRetriesPerRequest: 1,
+        lazyConnect: false,
+        enableAutoPipelining: true,
+      });
+      this.redis.on('error', (err: unknown) => {
+        this.logger.error(
+          `Redis error in blocklist: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+      this.redis.on('ready', () => {
+        this.logger.log('Token blocklist is using Redis backend');
+      });
+    } catch {
+      this.logger.error(
+        'Failed to initialize Redis for token blocklist, falling back to in-memory',
       );
     }
   }
@@ -56,6 +61,7 @@ export class TokenBlocklistService implements OnModuleDestroy {
   public async block(jti: string, ttlSeconds: number): Promise<void> {
     if (typeof jti !== 'string' || jti.length === 0) return;
     const ttl = Math.max(1, Math.floor(Number(ttlSeconds)));
+    this.ensureRedisInitialized();
     if (this.isRedis(this.redis)) {
       try {
         await this.redis.set(this.buildKey(jti), '1', 'EX', ttl);
@@ -74,6 +80,7 @@ export class TokenBlocklistService implements OnModuleDestroy {
 
   public async isBlocked(jti: unknown): Promise<boolean> {
     if (typeof jti !== 'string' || jti.length === 0) return false;
+    this.ensureRedisInitialized();
     if (this.isRedis(this.redis)) {
       try {
         const exists = await this.redis.exists(this.buildKey(jti));

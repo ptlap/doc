@@ -8,9 +8,11 @@ import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
+import { RequestContextService } from '../services/request-context.service';
 
 @Injectable()
 export class CorrelationIdInterceptor implements NestInterceptor {
+  constructor(private readonly requestContext: RequestContextService) {}
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const http = context.switchToHttp();
     const req = http.getRequest<Request>();
@@ -22,6 +24,9 @@ export class CorrelationIdInterceptor implements NestInterceptor {
       : existing || randomUUID();
 
     res.setHeader('X-Correlation-Id', correlationId);
+
+    // Store into ALS for downstream usage
+    this.requestContext.set('correlationId', String(correlationId));
 
     return next.handle().pipe(
       tap(() => {
