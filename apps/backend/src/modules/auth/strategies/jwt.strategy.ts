@@ -34,6 +34,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<ValidatedUser> {
+    // 0) Only allow user tokens here (service tokens must use service strategy)
+    const tokenType: unknown = (payload as { type?: unknown }).type;
+    if (tokenType && tokenType !== 'user') {
+      throw new UnauthorizedException('Invalid token type');
+    }
     // 1) Deny if jti is blocked
     const maybeJti: unknown = (payload as { jti?: unknown }).jti;
     const blocked = await this.tokenBlocklist.isBlocked(maybeJti);
@@ -45,7 +50,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const versionRows = await this.prisma.$queryRaw<
       Array<{ token_version?: number }>
     >`
-      SELECT token_version FROM users WHERE id = ${payload.sub} LIMIT 1
+      SELECT token_version FROM users WHERE id = ${payload.sub}::uuid LIMIT 1
     `;
     const currentVersion =
       Array.isArray(versionRows) &&

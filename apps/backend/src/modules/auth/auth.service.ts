@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { createHash } from 'crypto';
 import { PrismaService } from '../../common/services/prisma.service';
 import { PermissionsService } from '../../common/services/permissions.service';
 import { TokenBlocklistService } from '../../common/services/token-blocklist.service';
@@ -35,6 +36,10 @@ export class AuthService {
     private readonly permissionsService: PermissionsService,
     private readonly tokenBlocklist: TokenBlocklistService,
   ) {}
+
+  private static hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
 
   async register(registerDto: RegisterDto): Promise<AuthResponse> {
     const { email, password, name } = registerDto;
@@ -175,7 +180,7 @@ export class AuthService {
       await this.prisma.session.deleteMany({
         where: {
           userId,
-          sessionToken,
+          sessionToken: AuthService.hashToken(sessionToken),
         },
       });
 
@@ -285,13 +290,11 @@ export class AuthService {
   private async getTenantIdForUser(
     userId: string,
   ): Promise<string | undefined> {
-    const rows = await this.prisma.$queryRaw<
-      Array<{ tenant_id: string | null }>
-    >`
-      SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1
-    `;
-    const val =
-      Array.isArray(rows) && rows.length > 0 ? rows[0]?.tenant_id : null;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tenantId: true },
+    });
+    const val: unknown = user?.tenantId ?? null;
     return typeof val === 'string' ? val : undefined;
   }
 
@@ -311,16 +314,13 @@ export class AuthService {
       this.permissionsService.getPermissionsHashForRole(normalizedRole);
 
     // Compute tokenVersion: fetch from DB if present, else 0
-    const versionRows = await this.prisma.$queryRaw<
-      Array<{ token_version?: number }>
-    >`
-      SELECT token_version FROM users WHERE id = ${userId} LIMIT 1
-    `;
+    const versionRow = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tokenVersion: true },
+    });
     const tokenVersion =
-      Array.isArray(versionRows) &&
-      versionRows.length > 0 &&
-      typeof versionRows[0]?.token_version === 'number'
-        ? versionRows[0]?.token_version
+      typeof versionRow?.tokenVersion === 'number'
+        ? versionRow.tokenVersion
         : 0;
 
     const payload: JwtPayload = {
@@ -330,6 +330,8 @@ export class AuthService {
       ...(typeof tenantId === 'string' ? { tenantId } : {}),
       permsHash,
       tokenVersion,
+      type: 'user',
+      aud: 'user',
     };
 
     // inject jti for access token only
@@ -382,7 +384,7 @@ export class AuthService {
     await this.prisma.session.create({
       data: {
         userId,
-        sessionToken,
+        sessionToken: AuthService.hashToken(sessionToken),
         expiresAt,
         metadata: {
           userAgent: 'API', // TODO: Get from request

@@ -32,6 +32,7 @@ import { publicDecorator } from '../../common/decorators/public.decorator';
 import { currentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { ServiceAuthGuard } from '../../common/guards/service-auth.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -195,6 +196,13 @@ export class AuthController {
   })
   getProfile(@currentUser() user: User): User {
     return user;
+  }
+
+  @Get('service/ping')
+  @UseGuards(ServiceAuthGuard)
+  @ApiBearerAuth()
+  pingService() {
+    return { ok: true };
   }
 
   @Get('admin/users')
