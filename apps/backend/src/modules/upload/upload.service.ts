@@ -1,21 +1,21 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
+  Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
+import type { Document, Project, User } from '@prisma/client';
 import { PrismaService } from '../../common/services/prisma.service';
 import {
-  StorageService,
   StorageFile,
+  StorageService,
 } from '../../common/services/storage.service';
+import { DocumentStatus, DocumentType } from '../../types/prisma.types';
+import { ProcessingService } from '../processing/processing.service';
+import { ProjectsService } from '../projects/projects.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentResponseDto } from './dto/document-response.dto';
 import { UploadProgressDto } from './dto/upload-progress.dto';
-import { DocumentStatus, DocumentType } from '../../types/prisma.types';
-import { ProjectsService } from '../projects/projects.service';
-import { ProcessingService } from '../processing/processing.service';
-import type { Document, Project, User } from '@prisma/client';
 
 interface ProjectSettings {
   language?: string;
