@@ -1,12 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../common/services/prisma.service';
-import { StorageService } from '../../common/services/storage.service';
-import { ProcessorFactory } from '../../common/processors/processor-factory';
+import { DocumentStatus } from '@prisma/client';
 import {
   ProcessingResult,
   ProcessorOptions,
 } from '../../common/processors/base-processor.interface';
-import { DocumentStatus } from '@prisma/client';
+import { ProcessorFactory } from '../../common/processors/processor-factory';
+import type { DocumentProcessingJob } from '../../common/queues/processing-job.types';
+import { CircuitBreakerService } from '../../common/services/circuit-breaker.service';
+import { PrismaService } from '../../common/services/prisma.service';
+import { ProcessingQueueService } from '../../common/services/processing-queue.service';
+import { StorageService } from '../../common/services/storage.service';
 
 export interface ProcessDocumentOptions extends ProcessorOptions {
   priority?: 'low' | 'normal' | 'high';
@@ -36,74 +39,126 @@ export interface ProcessingProgress {
 @Injectable()
 export class ProcessingService {
   private readonly logger = new Logger(ProcessingService.name);
-  private readonly processingQueue = new Map<string, ProcessingProgress>();
+  private readonly inMemoryProgressMap = new Map<string, ProcessingProgress>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly processorFactory: ProcessorFactory,
+    private readonly processingQueue: ProcessingQueueService,
+    private readonly circuitBreaker: CircuitBreakerService,
   ) {}
 
   async processDocument(
     documentId: string,
     options: ProcessDocumentOptions = {},
   ): Promise<void> {
+    this.logger.log(`Dispatching processing job for: ${documentId}`);
+
+    // Initialize progress tracking (controller can show immediate feedback)
+    this.initializeProgress(documentId);
+
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      include: {
+        project: { select: { id: true, settings: true } },
+        user: { select: { id: true } },
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException(`Document not found: ${documentId}`);
+    }
+
+    await this.updateDocumentStatus(documentId, DocumentStatus.processing, 10);
+
+    const projectSettings =
+      (document.project.settings as ProjectSettings) || {};
+    const processingOptions: ProcessorOptions = {
+      language: options.language || projectSettings.language || 'eng',
+      ocrEnabled: options.ocrEnabled ?? projectSettings.ocrEnabled ?? true,
+      extractImages:
+        options.extractImages ?? projectSettings.extractImages ?? false,
+      preserveFormatting:
+        options.preserveFormatting ??
+        projectSettings.preserveFormatting ??
+        false,
+      quality: (options.quality || projectSettings.quality || 'medium') as
+        | 'low'
+        | 'medium'
+        | 'high',
+    };
+
+    const jobPayload: Omit<
+      DocumentProcessingJob,
+      'jobId' | 'createdAt' | 'version'
+    > = {
+      documentId,
+      projectId: document.projectId,
+      userId: document.userId,
+      tenantId: document.tenantId,
+      file: {
+        storedFilename: document.storedFilename,
+        originalFilename: document.originalFilename,
+        mimeType: document.mimeType,
+        sizeBytes: Number(document.fileSizeBytes ?? 0),
+      },
+      options: { ...processingOptions, priority: options.priority ?? 'normal' },
+      webhook: options.webhook,
+      metadata: options.metadata,
+      source: 'api',
+      reprocess: false,
+    };
+
+    // Circuit breaker wraps enqueue; fallback to in-process execution if queue is unavailable
+    const { enqueued, jobId } = await this.circuitBreaker.exec(
+      () => this.processingQueue.enqueueDocumentProcessing(jobPayload),
+      () =>
+        Promise.resolve({ enqueued: false, jobId: 'fallback-' + Date.now() }),
+    );
+
+    if (enqueued) {
+      this.updateProgress(documentId, 'Queued for processing', 15);
+      this.logger.log(
+        `Enqueued processing job ${jobId} for document ${documentId}`,
+      );
+      return;
+    }
+
+    // Fallback path: process synchronously (temporary until worker service picks up)
+    this.logger.warn(
+      'Queue unavailable; falling back to in-process processing',
+    );
+    await this.processInline(documentId, processingOptions);
+  }
+
+  private async processInline(
+    documentId: string,
+    processingOptions: ProcessorOptions,
+  ): Promise<void> {
     const startTime = Date.now();
 
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+      select: {
+        id: true,
+        projectId: true,
+        storedFilename: true,
+        originalFilename: true,
+        mimeType: true,
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException(`Document not found: ${documentId}`);
+    }
+
     try {
-      this.logger.log(`Starting document processing: ${documentId}`);
-
-      // Initialize progress tracking
-      this.initializeProgress(documentId);
-
-      // Get document from database
-      const document = await this.prisma.document.findUnique({
-        where: { id: documentId },
-        include: {
-          project: {
-            select: {
-              settings: true,
-            },
-          },
-        },
-      });
-
-      if (!document) {
-        throw new NotFoundException(`Document not found: ${documentId}`);
-      }
-
-      // Update status to processing
-      await this.updateDocumentStatus(
-        documentId,
-        DocumentStatus.processing,
-        10,
-      );
-
-      // Download file from storage
       this.updateProgress(documentId, 'Downloading file', 20);
       const fileBuffer = await this.storageService.getFile(
         document.storedFilename,
       );
 
-      // Merge project settings with processing options
-      const projectSettings =
-        (document.project.settings as ProjectSettings) || {};
-      const processingOptions: ProcessorOptions = {
-        language: options.language || projectSettings.language || 'eng',
-        ocrEnabled: options.ocrEnabled ?? projectSettings.ocrEnabled ?? true,
-        extractImages:
-          options.extractImages ?? projectSettings.extractImages ?? false,
-        preserveFormatting:
-          options.preserveFormatting ??
-          projectSettings.preserveFormatting ??
-          false,
-        quality: (options.quality || projectSettings.quality || 'medium') as
-          | 'low'
-          | 'medium'
-          | 'high',
-      };
-
-      // Process document
       this.updateProgress(documentId, 'Processing document', 30);
       const result = await this.processorFactory.processDocument(
         fileBuffer,
@@ -116,47 +171,36 @@ export class ProcessingService {
         throw new Error(result.error || 'Processing failed');
       }
 
-      // Save processing results
       this.updateProgress(documentId, 'Saving results', 70);
       await this.saveProcessingResults(documentId, result);
-
-      // Update document status
       await this.updateDocumentStatus(
         documentId,
         DocumentStatus.processed,
         100,
       );
-
-      // Update project statistics
       await this.updateProjectStats(document.projectId);
 
       this.logger.log(
-        `Document processing completed: ${documentId} in ${Date.now() - startTime}ms`,
+        `Inline processing completed: ${documentId} in ${Date.now() - startTime}ms`,
       );
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `Document processing failed: ${documentId} - ${errorMessage}`,
+        `Inline processing failed: ${documentId} - ${errorMessage}`,
       );
-
-      // Update document with error
       await this.updateDocumentStatus(
         documentId,
         DocumentStatus.failed,
         0,
         errorMessage,
       );
-
-      // Update progress with error
       this.updateProgress(documentId, 'Processing failed', 0, errorMessage);
-
       throw error;
     } finally {
-      // Clean up progress tracking after a delay
       setTimeout(() => {
-        this.processingQueue.delete(documentId);
-      }, 60000); // Keep for 1 minute for status queries
+        this.inMemoryProgressMap.delete(documentId);
+      }, 60000);
     }
   }
 
@@ -164,7 +208,7 @@ export class ProcessingService {
     documentId: string,
   ): Promise<ProcessingProgress | null> {
     // Check in-memory progress first
-    const inMemoryProgress = this.processingQueue.get(documentId);
+    const inMemoryProgress = this.inMemoryProgressMap.get(documentId);
     if (inMemoryProgress) {
       return inMemoryProgress;
     }
@@ -223,7 +267,7 @@ export class ProcessingService {
   }
 
   private initializeProgress(documentId: string): void {
-    this.processingQueue.set(documentId, {
+    this.inMemoryProgressMap.set(documentId, {
       documentId,
       status: DocumentStatus.processing,
       progress: 0,
@@ -239,7 +283,7 @@ export class ProcessingService {
     progress: number,
     error?: string,
   ): void {
-    const current = this.processingQueue.get(documentId);
+    const current = this.inMemoryProgressMap.get(documentId);
     if (current) {
       current.currentStep = step;
       current.progress = progress;

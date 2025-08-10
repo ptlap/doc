@@ -7,6 +7,8 @@ import { PdfProcessor } from '../../common/processors/pdf-processor';
 import { ImageProcessor } from '../../common/processors/image-processor';
 import { DocxProcessor } from '../../common/processors/docx-processor';
 import { TextProcessor } from '../../common/processors/text-processor';
+import { ProcessingQueueService } from '../../common/services/processing-queue.service';
+import { CircuitBreakerService } from '../../common/services/circuit-breaker.service';
 
 @Module({
   controllers: [ProcessingController],
@@ -17,6 +19,8 @@ import { TextProcessor } from '../../common/processors/text-processor';
     ImageProcessor,
     DocxProcessor,
     TextProcessor,
+    ProcessingQueueService,
+    CircuitBreakerService,
   ],
   exports: [ProcessingService, ProcessorFactory],
 })
