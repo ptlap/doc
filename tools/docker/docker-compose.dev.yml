@@ -73,6 +73,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ai_document_assistant
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=dev-secret-key
+      - JWT_REFRESH_SECRET=dev-refresh-secret
       - CORS_ORIGIN=http://localhost:3000
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_ACCESS_KEY=minioadmin
