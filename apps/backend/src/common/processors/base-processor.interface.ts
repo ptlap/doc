@@ -33,6 +33,8 @@ export interface BoundingBox {
   height: number;
   text: string;
   confidence: number;
+  polygon?: Array<{ x: number; y: number }>;
+  rotation?: number;
 }
 
 export interface ProcessorOptions {

@@ -48,14 +48,11 @@ const redis = new IORedis(REDIS_URL, {
 let isShuttingDown = false;
 
 async function processJob(job: DocumentProcessingJob): Promise<void> {
-  // Placeholder: đây là nơi gọi pipeline xử lý thực sự (Phase 2/3)
-  // Hiện tại, giả lập xử lý nhanh và in log để xác nhận worker chạy thông suốt
   console.log(
     `[worker] Processing job ${job.jobId} for document ${job.documentId}`
   );
-  await new Promise(r => setTimeout(r, 200));
-  console.log(`[worker] Done job ${job.jobId}`);
-  // Optionally: store a simple result structure for API to fetch
+  // Tạm thời: chỉ đánh dấu đã nhận job. Pipeline chi tiết thuộc Phase 2/3
+  await new Promise(r => setTimeout(r, 100));
   try {
     const result = { success: true, completedAt: new Date().toISOString() };
     await redis.set(
@@ -67,6 +64,7 @@ async function processJob(job: DocumentProcessingJob): Promise<void> {
   } catch (error) {
     console.warn('[worker] Failed to store result:', error);
   }
+  console.log(`[worker] Done job ${job.jobId}`);
 }
 
 async function consumeLoop(): Promise<void> {
