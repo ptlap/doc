@@ -43,6 +43,8 @@ export interface ProcessorOptions {
   extractImages?: boolean;
   preserveFormatting?: boolean;
   quality?: 'low' | 'medium' | 'high';
+  // Optional context for caching/integration
+  documentId?: string;
 }
 
 export abstract class BaseProcessor {

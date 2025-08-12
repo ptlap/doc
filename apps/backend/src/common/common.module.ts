@@ -1,10 +1,11 @@
 import { Global, Module } from '@nestjs/common';
-import { PrismaService } from './services/prisma.service';
-import { StorageService } from './services/storage.service';
 import { AppLoggerService } from './services/app-logger.service';
 import { PermissionsService } from './services/permissions.service';
-import { TokenBlocklistService } from './services/token-blocklist.service';
+import { PreprocessingCacheService } from './services/preprocessing-cache.service';
+import { PrismaService } from './services/prisma.service';
 import { RequestContextService } from './services/request-context.service';
+import { StorageService } from './services/storage.service';
+import { TokenBlocklistService } from './services/token-blocklist.service';
 
 @Global()
 @Module({
@@ -15,6 +16,7 @@ import { RequestContextService } from './services/request-context.service';
     PermissionsService,
     TokenBlocklistService,
     RequestContextService,
+    PreprocessingCacheService,
   ],
   exports: [
     PrismaService,
@@ -23,6 +25,7 @@ import { RequestContextService } from './services/request-context.service';
     PermissionsService,
     TokenBlocklistService,
     RequestContextService,
+    PreprocessingCacheService,
   ],
 })
 export class CommonModule {}

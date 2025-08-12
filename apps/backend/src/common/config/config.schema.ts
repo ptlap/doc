@@ -33,6 +33,13 @@ export const configValidationSchema = Joi.object({
   // Redis (optional)
   REDIS_URL: Joi.string().uri().optional(),
 
+  // Preprocessing Cache
+  PREPROC_CACHE_TTL_SECONDS: Joi.number().default(7 * 24 * 60 * 60),
+  PREPROC_CACHE_PREFIX: Joi.string().default('preproc'),
+  PREPROC_CACHE_MAX_REDIS_BYTES: Joi.number().default(128 * 1024),
+  PREPROC_CACHE_MAX_ITEMS: Joi.number().default(5000),
+  PREPROC_CACHE_EVICT_BATCH: Joi.number().default(100),
+
   // AWS S3 (optional in development)
   AWS_REGION: Joi.string().when('NODE_ENV', {
     is: 'production',

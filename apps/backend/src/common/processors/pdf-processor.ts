@@ -7,6 +7,7 @@ import pdf2pic from 'pdf2pic';
 import { getDocument, OPS } from 'pdfjs-dist';
 import * as sharp from 'sharp';
 import { createWorker, PSM } from 'tesseract.js';
+import { PreprocessingCacheService } from '../services/preprocessing-cache.service';
 import {
   computeBornDigitalConfidence,
   computeTextQualityMetrics,
@@ -92,6 +93,10 @@ export class PdfProcessor extends BaseProcessor {
   private readonly logger = new Logger(PdfProcessor.name);
   readonly supportedMimeTypes = ['application/pdf'];
   readonly processorName = 'PDF Processor';
+
+  constructor(private readonly preprocCache: PreprocessingCacheService) {
+    super();
+  }
 
   canProcess(mimeType: string): boolean {
     return this.supportedMimeTypes.includes(mimeType);
@@ -550,8 +555,9 @@ export class PdfProcessor extends BaseProcessor {
     );
     await fs.writeFile(tempPdfPath, buffer);
 
+    const targetDpi = this.getDpiForQuality(options.quality);
     const convert = pdf2pic.fromPath(tempPdfPath, {
-      density: 200,
+      density: targetDpi,
       saveFilename: 'page',
       savePath: tempDir,
       format: 'png',
@@ -572,9 +578,51 @@ export class PdfProcessor extends BaseProcessor {
         const pageNum = region.pageNumber;
         const pagePng = await convert(pageNum, { responseType: 'buffer' });
         if (!pagePng.buffer) continue;
-        const pageImg = pagePng.buffer;
-        // Map viewport coords to pixels
-        const pageMeta = await sharp(pageImg).metadata();
+
+        // Fetch preprocessed full-page buffer from cache or compute
+        let prePageBuffer: Buffer | null = null;
+        const hasDocId =
+          typeof options.documentId === 'string' &&
+          options.documentId.length > 0;
+        const paramsHash = hasDocId
+          ? this.preprocCache.buildParamsHashFromObject({
+              quality: options.quality || 'medium',
+              language: options.language || 'eng',
+              deskew: true,
+              denoise: true,
+              rotateHint: 0,
+            })
+          : '';
+        if (hasDocId) {
+          prePageBuffer = await this.preprocCache.get(
+            options.documentId!,
+            pageNum,
+            targetDpi,
+            paramsHash,
+          );
+        }
+        if (!prePageBuffer) {
+          const pre = await this.preprocessForOcr(
+            pagePng.buffer,
+            worker,
+            targetDpi,
+            options.quality || 'medium',
+          );
+          prePageBuffer = pre.buffer;
+          if (hasDocId) {
+            await this.preprocCache.set(
+              options.documentId!,
+              pageNum,
+              targetDpi,
+              paramsHash,
+              prePageBuffer,
+              'image/png',
+            );
+          }
+        }
+
+        // Map viewport coords to pixels using preprocessed page dims
+        const pageMeta = await sharp(prePageBuffer).metadata();
         const pxWidth = pageMeta.width || 2000;
         const pxHeight = pageMeta.height || 2000;
         const scaleX = pxWidth / region.viewport.width;
@@ -591,14 +639,10 @@ export class PdfProcessor extends BaseProcessor {
           const height = Math.max(1, Math.floor(imgBox.height * scaleY));
 
           try {
-            const crop = await sharp(pageImg)
+            const crop = await sharp(prePageBuffer)
               .extract({ left, top, width, height })
-              .greyscale()
-              .normalize()
-              .sharpen()
               .png()
               .toBuffer();
-
             const ocrRes = await worker.recognize(crop);
             const ocrResUnknown: unknown = ocrRes;
             const dataUnknown: unknown =
@@ -701,8 +745,9 @@ export class PdfProcessor extends BaseProcessor {
       await fs.writeFile(tempPdfPath, buffer);
 
       // Convert PDF pages to images
+      const targetDpi = this.getDpiForQuality(options.quality);
       const convert = pdf2pic.fromPath(tempPdfPath, {
-        density: 200, // DPI
+        density: targetDpi, // DPI normalization
         saveFilename: 'page',
         savePath: tempDir,
         format: 'png',
@@ -739,20 +784,57 @@ export class PdfProcessor extends BaseProcessor {
             const result = await convert(pageNum, { responseType: 'buffer' });
 
             if (result.buffer) {
-              // Get image metadata
-              const imageMetadata = await sharp(result.buffer).metadata();
+              // Try cache first if documentId is provided
+              let preBuffer: Buffer | null = null;
+              const hasDocId =
+                typeof options.documentId === 'string' &&
+                options.documentId.length > 0;
+              const paramsHash = hasDocId
+                ? this.preprocCache.buildParamsHashFromObject({
+                    quality: options.quality || 'medium',
+                    language: options.language || 'eng',
+                    deskew: true,
+                    denoise: true,
+                    rotateHint: 0,
+                  })
+                : '';
+              if (hasDocId) {
+                preBuffer = await this.preprocCache.get(
+                  options.documentId!,
+                  pageNum,
+                  targetDpi,
+                  paramsHash,
+                );
+              }
 
-              // Optimize image for OCR
-              const optimizedImage = await sharp(result.buffer)
-                .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
-                .greyscale()
-                .normalize()
-                .sharpen()
-                .png()
-                .toBuffer();
+              // Preprocess pipeline: auto-rotate, deskew, denoise, ensure DPI
+              const pre =
+                preBuffer && Buffer.isBuffer(preBuffer)
+                  ? {
+                      buffer: preBuffer,
+                      rotation: 0,
+                      deskew: 0,
+                      dpi: targetDpi,
+                    }
+                  : await this.preprocessForOcr(
+                      result.buffer,
+                      worker,
+                      targetDpi,
+                      options.quality || 'medium',
+                    );
+              if (!preBuffer && hasDocId) {
+                await this.preprocCache.set(
+                  options.documentId!,
+                  pageNum,
+                  targetDpi,
+                  paramsHash,
+                  pre.buffer,
+                  'image/png',
+                );
+              }
 
               // Perform OCR
-              const ocrRes = await worker.recognize(optimizedImage);
+              const ocrRes = await worker.recognize(pre.buffer);
               const ocrResUnknown: unknown = ocrRes;
               const dataUnknown: unknown =
                 typeof ocrResUnknown === 'object' &&
@@ -774,6 +856,7 @@ export class PdfProcessor extends BaseProcessor {
                   ? ((data as Record<string, unknown>).confidence as number)
                   : 0;
               if (textStr.trim()) {
+                const imageMetadata = await sharp(pre.buffer).metadata();
                 pages.push(
                   this.createPageResult(
                     pageNum,
@@ -782,6 +865,7 @@ export class PdfProcessor extends BaseProcessor {
                     {
                       width: imageMetadata.width || 0,
                       height: imageMetadata.height || 0,
+                      dpi: targetDpi,
                       processingTime: Date.now() - pageStartTime,
                     },
                   ),
@@ -886,6 +970,171 @@ export class PdfProcessor extends BaseProcessor {
         this.logger.warn(`Failed to cleanup temp directory: ${errorMessage}`);
       }
     }
+  }
+
+  // ---------- Preprocessing helpers (Task 3.2) ----------
+
+  private getDpiForQuality(
+    quality: ProcessorOptions['quality'] | undefined,
+  ): number {
+    switch (quality) {
+      case 'low':
+        return 200;
+      case 'high':
+        return 600;
+      case 'medium':
+      default:
+        return 300;
+    }
+  }
+
+  private async preprocessForOcr(
+    image: Buffer,
+    worker: unknown,
+    dpi: number,
+    quality: NonNullable<ProcessorOptions['quality']>,
+  ): Promise<{
+    buffer: Buffer;
+    rotation: number;
+    deskew: number;
+    dpi: number;
+  }> {
+    // Step 1: auto-rotate using Tesseract OSD when available
+    let rotated = image;
+    let rotation = 0;
+    const angle = await this.detectOrientationAngle(worker, image);
+    if (typeof angle === 'number' && Number.isFinite(angle) && angle !== 0) {
+      rotation = ((angle % 360) + 360) % 360;
+      // Tesseract usually returns orientation angle of the text; rotate opposite to correct
+      const rotateBy = (360 - rotation) % 360;
+      rotated = await sharp(image)
+        .rotate(rotateBy, { background: '#ffffff' })
+        .toBuffer();
+    }
+
+    // Step 2: deskew small angle [-3..3] degrees
+    let deskewAngle = 0;
+    try {
+      deskewAngle = await this.estimateDeskewAngle(rotated);
+      if (deskewAngle !== 0) {
+        rotated = await sharp(rotated)
+          .rotate(deskewAngle, { background: '#ffffff' })
+          .toBuffer();
+      }
+    } catch {
+      // ignore deskew failures
+    }
+
+    // Step 3: denoise + normalize
+    const pipeline = sharp(rotated)
+      .resize(2000, 2000, { fit: 'inside', withoutEnlargement: true })
+      .greyscale()
+      .normalize();
+    // Quality-dependent filters
+    if (quality === 'high') {
+      pipeline.median(3).sharpen();
+    } else if (quality === 'medium') {
+      pipeline.median(1).sharpen();
+    } else {
+      pipeline.sharpen();
+    }
+
+    const preprocessed = await pipeline
+      .withMetadata({ density: dpi })
+      .png()
+      .toBuffer();
+
+    return { buffer: preprocessed, rotation, deskew: deskewAngle, dpi };
+  }
+
+  private async detectOrientationAngle(
+    worker: unknown,
+    image: Buffer,
+  ): Promise<number | null> {
+    try {
+      const hasDetect =
+        typeof (worker as { detect?: unknown }).detect === 'function';
+      if (!hasDetect) return null;
+      const detectionUnknown: unknown = await (
+        worker as {
+          detect: (img: Buffer) => Promise<unknown>;
+        }
+      ).detect(image);
+      const det =
+        typeof detectionUnknown === 'object' && detectionUnknown !== null
+          ? (detectionUnknown as Record<string, unknown>)
+          : {};
+      const dataUnknown = det.data;
+      const data =
+        typeof dataUnknown === 'object' && dataUnknown !== null
+          ? (dataUnknown as Record<string, unknown>)
+          : {};
+      // Try different likely shapes: data.orientation.deg | data.osd.rotate | data.orientation.angle
+      const oriUnknown = data.orientation;
+      const ori =
+        typeof oriUnknown === 'object' && oriUnknown !== null
+          ? (oriUnknown as Record<string, unknown>)
+          : {};
+      const degA = ori.deg;
+      const angA = ori.angle;
+      const osdUnknown = data.osd;
+      const osd =
+        typeof osdUnknown === 'object' && osdUnknown !== null
+          ? (osdUnknown as Record<string, unknown>)
+          : {};
+      const rotB = osd.rotate;
+      const candidates = [degA, angA, rotB].filter(
+        (v): v is number => typeof v === 'number' && Number.isFinite(v),
+      );
+      if (candidates.length === 0) return null;
+      // Normalize to one of {0, 90, 180, 270}
+      const raw = ((candidates[0] % 360) + 360) % 360;
+      const nearest = [0, 90, 180, 270].reduce(
+        (prev, curr) =>
+          Math.abs(curr - raw) < Math.abs(prev - raw) ? curr : prev,
+        0,
+      );
+      return nearest;
+    } catch {
+      return null;
+    }
+  }
+
+  private async estimateDeskewAngle(image: Buffer): Promise<number> {
+    // Search small angles for maximal horizontal projection contrast
+    const candidates = [-3, -2, -1, 0, 1, 2, 3];
+    let bestAngle = 0;
+    let bestScore = -Infinity;
+
+    for (const ang of candidates) {
+      try {
+        const { data, info } = await sharp(image)
+          .rotate(ang, { background: '#ffffff' })
+          .greyscale()
+          .raw()
+          .toBuffer({ resolveWithObject: true });
+        const width = info.width;
+        const height = info.height;
+        let prev = 0;
+        let score = 0;
+        for (let y = 0; y < height; y++) {
+          let sum = 0;
+          const rowStart = y * width;
+          for (let x = 0; x < width; x++) {
+            sum += data[rowStart + x];
+          }
+          if (y > 0) score += Math.abs(sum - prev);
+          prev = sum;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestAngle = ang;
+        }
+      } catch {
+        // ignore specific angle failures
+      }
+    }
+    return bestAngle;
   }
 
   private splitTextIntoPages(text: string, numPages: number): string[] {
