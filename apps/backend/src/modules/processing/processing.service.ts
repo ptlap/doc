@@ -7,6 +7,7 @@ import {
 import { ProcessorFactory } from '../../common/processors/processor-factory';
 import type { DocumentProcessingJob } from '../../common/queues/processing-job.types';
 import { CircuitBreakerService } from '../../common/services/circuit-breaker.service';
+import { PreprocessingCacheService } from '../../common/services/preprocessing-cache.service';
 import { PrismaService } from '../../common/services/prisma.service';
 import { ProcessingQueueService } from '../../common/services/processing-queue.service';
 import { StorageService } from '../../common/services/storage.service';
@@ -47,6 +48,7 @@ export class ProcessingService {
     private readonly processorFactory: ProcessorFactory,
     private readonly processingQueue: ProcessingQueueService,
     private readonly circuitBreaker: CircuitBreakerService,
+    private readonly preprocCache: PreprocessingCacheService,
   ) {}
 
   async processDocument(
@@ -87,6 +89,7 @@ export class ProcessingService {
         | 'low'
         | 'medium'
         | 'high',
+      documentId,
     };
 
     const jobPayload: Omit<
